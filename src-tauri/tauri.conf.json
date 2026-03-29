@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "downlink",
-        "width": 800,
-        "height": 600
+        "title": "",
+        "width": 1500,
+        "height": 1000
       }
     ],
     "security": {
