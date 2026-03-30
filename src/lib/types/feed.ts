@@ -20,6 +20,7 @@ export interface Article {
   author?: string;
   publishedAt?: string;
   read: boolean;
+  categories?: string[];
 }
 
 /** Matches the Rust `FeedResult` struct returned by the `fetch_feed` command. */
@@ -39,4 +40,5 @@ export interface ArticleResult {
   summary: string | null;
   author: string | null;
   published_at: string | null;
+  categories: string[];
 }

@@ -7,6 +7,9 @@
 
 <div class="card">
     <div class="card-body">
+        {#if !article.read}
+            <span class="unread-dot" title="Unread"></span>
+        {/if}
         {#if article.feedLogo}
             <img
                 class="feed-logo"
@@ -27,6 +30,10 @@
 
             <h3 class="title">{article.title}</h3>
 
+            {#if article.categories?.length}
+                <span class="category">{article.categories[0]}</span>
+            {/if}
+
             {#if article.summary}
                 <p class="summary">{article.summary}</p>
             {/if}
@@ -39,6 +46,7 @@
         display: block;
         width: 100%;
         color: inherit;
+        position: relative;
     }
 
     .card-body {
@@ -106,6 +114,29 @@
         overflow: hidden;
     }
 
+    .category {
+        display: inline-block;
+        font-size: 0.58rem;
+        font-weight: 500;
+        line-height: 1;
+        padding: 0.15rem 0.35rem;
+        margin-bottom: 0.2rem;
+        border-radius: 3px;
+        background-color: rgba(91, 155, 213, 0.1);
+        color: #5b9bd5;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .category {
+            background-color: rgba(91, 155, 213, 0.15);
+            color: #7db8e8;
+        }
+    }
+
     .summary {
         font-size: 0.7rem;
         line-height: 1.4;
@@ -115,6 +146,18 @@
         line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+
+    .unread-dot {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #5b9bd5;
+        flex-shrink: 0;
+        pointer-events: none;
     }
 
     @media (prefers-color-scheme: dark) {

@@ -22,6 +22,7 @@ pub struct ArticleResult {
     pub summary: Option<String>,
     pub author: Option<String>,
     pub published_at: Option<String>,
+    pub categories: Vec<String>,
 }
 
 #[tauri::command]
@@ -59,6 +60,11 @@ async fn fetch_feed(url: String) -> Result<FeedResult, String> {
             let summary = entry.summary.map(|s| s.content);
             let author = entry.authors.first().map(|a| a.name.clone());
             let published_at = entry.published.or(entry.updated).map(|dt| dt.to_rfc3339());
+            let categories: Vec<String> = entry
+                .categories
+                .iter()
+                .map(|c| c.label.as_deref().unwrap_or(&c.term).to_string())
+                .collect();
 
             ArticleResult {
                 id: entry.id,
@@ -68,6 +74,7 @@ async fn fetch_feed(url: String) -> Result<FeedResult, String> {
                 summary,
                 author,
                 published_at,
+                categories,
             }
         })
         .collect();

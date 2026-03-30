@@ -55,6 +55,7 @@
                 author: a.author ?? undefined,
                 publishedAt: a.published_at ?? undefined,
                 read: false,
+                categories: a.categories.length > 0 ? a.categories : undefined,
             }));
 
             addFeedArticles(articles);

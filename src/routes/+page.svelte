@@ -1,11 +1,18 @@
 <script lang="ts">
-    import { sortedArticles, selectedArticle } from "$lib/stores/feeds";
+    import {
+        sortedArticles,
+        selectedArticle,
+        markArticleRead,
+    } from "$lib/stores/feeds";
     import ArticleCard from "$lib/components/ArticleCard.svelte";
     import ArticleView from "$lib/components/ArticleView.svelte";
     import WeatherWidget from "$lib/components/WeatherWidget.svelte";
 
     function selectArticle(article: import("$lib/types/feed").Article) {
         $selectedArticle = article;
+        if (!article.read) {
+            markArticleRead(article.id);
+        }
     }
 </script>
 

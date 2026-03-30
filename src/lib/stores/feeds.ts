@@ -34,7 +34,13 @@ export function addFeedArticles(newArticles: Article[]) {
   articles.update((existing) => {
     const byId = new Map(existing.map((a) => [a.id, a]));
     for (const article of newArticles) {
-      byId.set(article.id, article);
+      const prev = byId.get(article.id);
+      // Preserve read state from the existing article on refresh
+      if (prev?.read) {
+        byId.set(article.id, { ...article, read: true });
+      } else {
+        byId.set(article.id, article);
+      }
     }
     return sortByDateDesc([...byId.values()], "publishedAt");
   });
@@ -67,6 +73,15 @@ export function removeFeed(feedId: string) {
 /**
  * Updates only the tags on an existing feed.
  */
+/**
+ * Marks a single article as read by its ID.
+ */
+export function markArticleRead(articleId: string) {
+  articles.update((list) =>
+    list.map((a) => (a.id === articleId ? { ...a, read: true } : a)),
+  );
+}
+
 export function updateFeedTags(feedId: string, tags: string[]) {
   feeds.update((list) =>
     list.map((f) => (f.id === feedId ? { ...f, tags } : f)),
