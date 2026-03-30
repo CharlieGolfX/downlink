@@ -1,6 +1,14 @@
 import { writable, derived, get } from "svelte/store";
 import type { Feed, Article } from "$lib/types/feed";
 import { sortByDateDesc } from "$lib/utils/date";
+import {
+  dbUpsertFeed,
+  dbRemoveFeed,
+  dbUpdateFeedTags,
+  dbUpsertArticles,
+  dbMarkArticleRead,
+  dbRemoveArticlesByFeed,
+} from "$lib/services/db";
 
 export const feeds = writable<Feed[]>([]);
 export const activeTag = writable<string>("all");
@@ -77,6 +85,7 @@ export const categorizedArticles = derived(
 /**
  * Merges new articles into the store, deduplicating by `id`,
  * so the same feed can be refreshed without creating duplicates.
+ * Persists every upserted article to the SQLite database.
  */
 export function addFeedArticles(newArticles: Article[]) {
   articles.update((existing) => {
@@ -90,13 +99,22 @@ export function addFeedArticles(newArticles: Article[]) {
         byId.set(article.id, article);
       }
     }
-    return sortByDateDesc([...byId.values()], "publishedAt");
+    const merged = sortByDateDesc([...byId.values()], "publishedAt");
+
+    // Persist to DB — collect the articles that were actually touched
+    const toSave = newArticles.map((a) => byId.get(a.id) ?? a);
+    dbUpsertArticles(toSave).catch((err) =>
+      console.error("Failed to persist articles:", err),
+    );
+
+    return merged;
   });
 }
 
 /**
  * Registers a feed in the feeds list if it doesn't already exist.
  * If it does exist, updates its metadata.
+ * Persists the feed to the SQLite database.
  */
 export function upsertFeed(feed: Feed) {
   feeds.update((list) => {
@@ -108,30 +126,53 @@ export function upsertFeed(feed: Feed) {
     }
     return [...list, feed];
   });
+
+  // Persist to DB
+  dbUpsertFeed(feed).catch((err) =>
+    console.error("Failed to persist feed:", err),
+  );
 }
 
 /**
  * Removes a feed and all of its articles from the stores.
+ * Also removes them from the SQLite database.
  */
 export function removeFeed(feedId: string) {
   feeds.update((list) => list.filter((f) => f.id !== feedId));
   articles.update((list) => list.filter((a) => a.feedId !== feedId));
+
+  // Persist to DB (articles cascade-deleted via dbRemoveFeed)
+  dbRemoveFeed(feedId).catch((err) =>
+    console.error("Failed to remove feed from DB:", err),
+  );
 }
 
 /**
  * Marks a single article as read by its ID.
+ * Persists the read state to the SQLite database.
  */
 export function markArticleRead(articleId: string) {
   articles.update((list) =>
     list.map((a) => (a.id === articleId ? { ...a, read: true } : a)),
   );
+
+  // Persist to DB
+  dbMarkArticleRead(articleId).catch((err) =>
+    console.error("Failed to persist read state:", err),
+  );
 }
 
 /**
  * Updates only the tags on an existing feed.
+ * Persists the tag change to the SQLite database.
  */
 export function updateFeedTags(feedId: string, tags: string[]) {
   feeds.update((list) =>
     list.map((f) => (f.id === feedId ? { ...f, tags } : f)),
+  );
+
+  // Persist to DB
+  dbUpdateFeedTags(feedId, tags).catch((err) =>
+    console.error("Failed to persist feed tags:", err),
   );
 }

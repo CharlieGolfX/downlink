@@ -11,11 +11,13 @@
     import ArticleCard from "$lib/components/ArticleCard.svelte";
     import ArticleView from "$lib/components/ArticleView.svelte";
     import WeatherWidget from "$lib/components/WeatherWidget.svelte";
+    import { dbGetSetting, dbSetSetting } from "$lib/services/db";
 
     const SCROLL_AMOUNT = 120;
 
     // ── Resize state ────────────────────────────────────────────────────
-    const STORAGE_KEY = "downlink-panel-widths";
+    const SETTING_CAT_WIDTH = "panel-category-width";
+    const SETTING_SIDE_WIDTH = "panel-sidebar-width";
     const CAT_MIN = 120;
     const CAT_MAX = 320;
     const CAT_DEFAULT = 200;
@@ -31,38 +33,26 @@
     let dragStartX = 0;
     let dragStartWidth = 0;
 
-    function loadWidths() {
+    async function loadWidths() {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed.categoryWidth)
-                    categoryWidth = clamp(
-                        parsed.categoryWidth,
-                        CAT_MIN,
-                        CAT_MAX,
-                    );
-                if (parsed.sidebarWidth)
-                    sidebarWidth = clamp(
-                        parsed.sidebarWidth,
-                        SIDE_MIN,
-                        SIDE_MAX,
-                    );
+            const [catRaw, sideRaw] = await Promise.all([
+                dbGetSetting(SETTING_CAT_WIDTH),
+                dbGetSetting(SETTING_SIDE_WIDTH),
+            ]);
+            if (catRaw) {
+                categoryWidth = clamp(Number(catRaw), CAT_MIN, CAT_MAX);
+            }
+            if (sideRaw) {
+                sidebarWidth = clamp(Number(sideRaw), SIDE_MIN, SIDE_MAX);
             }
         } catch {
-            /* ignore */
+            /* ignore — use defaults */
         }
     }
 
     function saveWidths() {
-        try {
-            localStorage.setItem(
-                STORAGE_KEY,
-                JSON.stringify({ categoryWidth, sidebarWidth }),
-            );
-        } catch {
-            /* ignore */
-        }
+        dbSetSetting(SETTING_CAT_WIDTH, String(categoryWidth)).catch(() => {});
+        dbSetSetting(SETTING_SIDE_WIDTH, String(sidebarWidth)).catch(() => {});
     }
 
     function clamp(value: number, min: number, max: number): number {
@@ -201,8 +191,8 @@
         }
     }
 
-    onMount(() => {
-        loadWidths();
+    onMount(async () => {
+        await loadWidths();
         window.addEventListener("keydown", handleKeydown);
         window.addEventListener("mousemove", onResizeMouseMove);
         window.addEventListener("mouseup", onResizeMouseUp);

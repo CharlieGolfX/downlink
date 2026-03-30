@@ -7,12 +7,19 @@
     import { triggerRefresh, markUpdated } from "$lib/stores/ui";
     import {
         feeds,
+        articles,
         activeTag,
         upsertFeed,
         addFeedArticles,
     } from "$lib/stores/feeds";
     import { AVAILABLE_TAGS } from "$lib/tags";
     import type { Article } from "$lib/types/feed";
+    import {
+        getDb,
+        dbLoadFeeds,
+        dbLoadArticles,
+        dbPruneOldArticles,
+    } from "$lib/services/db";
 
     const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -22,7 +29,36 @@
     let showManageFeeds = $state(false);
     let loading = $state(false);
     let refreshing = $state(false);
+    let dbReady = $state(false);
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    /** Load persisted feeds & articles from SQLite on startup. */
+    async function loadFromDb() {
+        try {
+            await getDb();
+
+            // Remove articles older than 48 hours before loading
+            const pruned = await dbPruneOldArticles();
+            if (pruned > 0) {
+                console.log(`Pruned ${pruned} article(s) older than 48 hours`);
+            }
+
+            const [savedFeeds, savedArticles] = await Promise.all([
+                dbLoadFeeds(),
+                dbLoadArticles(),
+            ]);
+            if (savedFeeds.length > 0) {
+                feeds.set(savedFeeds);
+            }
+            if (savedArticles.length > 0) {
+                articles.set(savedArticles);
+            }
+            dbReady = true;
+        } catch (err) {
+            console.error("Failed to load data from DB:", err);
+            dbReady = true; // continue anyway so the app is usable
+        }
+    }
 
     async function handleAddFeed(url: string, tags: string[]) {
         loading = true;
@@ -75,6 +111,16 @@
         triggerRefresh();
         try {
             const count = await refreshAllFeeds();
+
+            // Prune stale articles after refresh and sync the store
+            const pruned = await dbPruneOldArticles();
+            if (pruned > 0) {
+                console.log(`Pruned ${pruned} article(s) older than 48 hours`);
+                // Reload articles from DB so the in-memory store matches
+                const freshArticles = await dbLoadArticles();
+                articles.set(freshArticles);
+            }
+
             markUpdated();
             console.log(`Refreshed ${count} feed(s)`);
         } catch (err) {
@@ -111,7 +157,8 @@
         }
     }
 
-    onMount(() => {
+    onMount(async () => {
+        await loadFromDb();
         startPolling();
         window.addEventListener("keydown", handleKeydown);
     });

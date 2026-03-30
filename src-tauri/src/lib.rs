@@ -550,6 +550,7 @@ async fn eval_original(app: tauri::AppHandle, js: String) -> Result<(), String> 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_sql::Builder::default().build())
         .manage(ReaderHtml(Mutex::new(String::new())))
         .register_uri_scheme_protocol("reader", |ctx, _request| {
             let state = ctx.app_handle().state::<ReaderHtml>();
