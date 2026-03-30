@@ -639,13 +639,44 @@ video, audio {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.5); }
+
+/* ── Reading progress bar ────────────────────────────── */
+#progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  z-index: 9999;
+  transition: width 80ms linear;
+  pointer-events: none;
+}
+body.theme-light #progress-bar { background: #ff3b30; }
+body.theme-sepia #progress-bar { background: #d45a1e; }
+body.theme-dark  #progress-bar { background: #ff453a; }
 </style>
 </head>
 <body class="theme-${options.theme}">
+  <div id="progress-bar"></div>
   <div class="reader-article">
     ${content}
   </div>
 ${IMAGE_SIZING_SCRIPT}
+<script>
+(function() {
+  var bar = document.getElementById('progress-bar');
+  if (!bar) return;
+  function update() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = docHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0;
+    bar.style.width = pct + '%';
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
+  update();
+})();
+</script>
 </body>
 </html>`;
 }

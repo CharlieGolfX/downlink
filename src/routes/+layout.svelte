@@ -98,12 +98,27 @@
         }
     }
 
+    function handleKeydown(e: KeyboardEvent) {
+        // Cmd+N (mac) or Ctrl+N (windows/linux) → open Add Feed modal
+        if (
+            e.key === "n" &&
+            (e.metaKey || e.ctrlKey) &&
+            !e.shiftKey &&
+            !e.altKey
+        ) {
+            e.preventDefault();
+            showAddFeed = true;
+        }
+    }
+
     onMount(() => {
         startPolling();
+        window.addEventListener("keydown", handleKeydown);
     });
 
     onDestroy(() => {
         stopPolling();
+        window.removeEventListener("keydown", handleKeydown);
     });
 </script>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { AVAILABLE_TAGS } from "$lib/tags";
     import { modalOpen } from "$lib/stores/ui";
+    import { tick } from "svelte";
 
     $effect(() => {
         modalOpen.set(open);
@@ -17,6 +18,13 @@
     let url = $state("");
     let selectedTags = $state<Set<string>>(new Set());
     let error = $state("");
+    let urlInput: HTMLInputElement | undefined = $state();
+
+    $effect(() => {
+        if (open) {
+            tick().then(() => urlInput?.focus());
+        }
+    });
 
     function toggleTag(tag: string) {
         const next = new Set(selectedTags);
@@ -108,6 +116,7 @@
                 <div class="field">
                     <label for="feed-url">Website or Feed URL</label>
                     <input
+                        bind:this={urlInput}
                         id="feed-url"
                         type="text"
                         placeholder="https://example.com"
