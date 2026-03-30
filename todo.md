@@ -25,7 +25,7 @@
 - [ ] **Full-text search** — search across all article titles and content with a quick-filter input in the sidebar.
 - [ ] **Article sorting options** — sort by date (newest/oldest first), by feed, or by unread status.
 - [ ] **Unread count badges** — show unread counts per tag and per feed in the sidebar/filter dropdown.
-- [ ] **Keyboard shortcuts** — add bindings for common actions: next/previous article (`j`/`k`), toggle reader/original (`r`), mark read (`m`), refresh (`R`), search (`/`).
+- [X] **Keyboard shortcuts** — add bindings for common actions: next/previous article (`j`/`k`), toggle reader/original (`r`), mark read (`m`), refresh (`R`), search (`/`).
 - [ ] **Open in external browser** — quick action to open the current article in the system default browser.
 - [ ] **Context menu on article cards** — right-click actions: mark read/unread, bookmark, copy link, open in browser.
 - [ ] **Article text-to-speech** — use the system TTS API to read articles aloud.
@@ -34,7 +34,7 @@
 
 ## Reader Mode
 
-- [ ] **Progress indicator** — show a reading progress bar or percentage as the user scrolls through an article.
+- [X] **Progress indicator** — show a reading progress bar or percentage as the user scrolls through an article.
 - [X] **Estimated reading time** — already partially computed; surface it more prominently in the UI.
 - [X] **Keyboard navigation in reader** — arrow keys or vim-style keys to scroll, `Esc` to close reader.
 - [ ] **Image lightbox** — click an image in reader mode to view it full-size in an overlay.
@@ -67,7 +67,7 @@
 
 ## UI & Desktop Experience
 
-- [ ] **Sidebar resize** — allow dragging to resize the article list sidebar width.
+- [X] **Sidebar resize** — allow dragging to resize the article list sidebar width.
 - [ ] **Compact / expanded list modes** — toggle between a dense title-only list and the current card layout.
 - [ ] **System tray integration** — minimize to tray, show unread badge, and allow refresh from the tray menu.
 - [ ] **Native notifications** — notify when new articles arrive (especially for high-priority feeds).
