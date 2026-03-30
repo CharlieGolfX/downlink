@@ -208,6 +208,54 @@ async fn geocode_location(query: String) -> Result<Vec<GeocodingResult>, String>
     Ok(results)
 }
 
+#[tauri::command]
+async fn translate_text(
+    text: String,
+    source_lang: String,
+    target_lang: String,
+) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://translate.googleapis.com/translate_a/single")
+        .query(&[
+            ("client", "gtx"),
+            ("sl", &source_lang),
+            ("tl", &target_lang),
+            ("dt", "t"),
+            ("q", &text),
+        ])
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        )
+        .send()
+        .await
+        .map_err(|e| format!("Failed to call translation API: {}", e))?;
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read translation response: {}", e))?;
+
+    let json: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("Failed to parse translation JSON: {}", e))?;
+
+    let mut translated = String::new();
+    if let Some(outer) = json.get(0).and_then(|v| v.as_array()) {
+        for segment in outer {
+            if let Some(part) = segment.get(0).and_then(|v| v.as_str()) {
+                translated.push_str(part);
+            }
+        }
+    }
+
+    if translated.is_empty() {
+        return Err("Translation returned empty result".to_string());
+    }
+
+    Ok(translated)
+}
+
 const ORIGINAL_WEBVIEW_LABEL: &str = "original-content";
 
 #[tauri::command]
@@ -374,6 +422,7 @@ pub fn run() {
             fetch_page_html,
             fetch_weather,
             geocode_location,
+            translate_text,
             show_original,
             hide_original,
             resize_original,

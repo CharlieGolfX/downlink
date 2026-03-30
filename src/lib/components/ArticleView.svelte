@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Article } from "$lib/types/feed";
     import { formatRelativeDate } from "$lib/utils/date";
+    import { sanitizeContent } from "$lib/utils/content";
     import {
         extractArticle,
         buildReaderHtml,
@@ -12,6 +13,12 @@
         type ReaderTheme,
         type ReaderFont,
     } from "$lib/stores/reader";
+    import {
+        translationSettings,
+        LANGUAGES,
+        TARGET_LANGUAGES,
+    } from "$lib/stores/translation";
+    import { translateHtml } from "$lib/services/translation";
     import {
         showOriginal,
         hideOriginal,
@@ -36,6 +43,13 @@
     let readerReady = $state(false);
     let readingTime = $state(0);
 
+    // Translation state
+    let translating = $state(false);
+    let showTranslateMenu = $state(false);
+    /** Cache the raw extracted content so we can re-translate without re-fetching. */
+    let cachedExtractedContent = $state<string | null>(null);
+    let cachedArticleUrl = $state<string | null>(null);
+
     const FONT_SIZES = [14, 16, 18, 20, 22];
     let fontSizePx = $derived(FONT_SIZES[$readerSettings.fontSize - 1] ?? 18);
 
@@ -52,6 +66,9 @@
             readerError = null;
             readerReady = false;
             readingTime = 0;
+            translating = false;
+            cachedExtractedContent = null;
+            cachedArticleUrl = null;
 
             if (article) {
                 tick().then(() => loadReaderView());
@@ -140,6 +157,39 @@
         hideReader().catch(() => {});
     });
 
+    /**
+     * Checks whether fetched HTML looks like a bot-protection / security
+     * challenge page (Cloudflare, Akamai, etc.) rather than real content.
+     */
+    function isBlockedPage(html: string): boolean {
+        const markers = [
+            "why have i been blocked",
+            "attention required! | cloudflare",
+            "cf-error-details",
+            "cloudflare ray id",
+            "challenge-platform",
+            "_cf_chl",
+            "just a moment...",
+            "please verify you are a human",
+            "access denied</h1>",
+            "security check required",
+            "checking your browser",
+            "enable javascript and cookies to continue",
+        ];
+        const lower = html.toLowerCase();
+        return markers.some((m) => lower.includes(m));
+    }
+
+    /**
+     * Attempts to build reader content from the article's RSS content or
+     * summary fields when fetching the full page fails or is blocked.
+     */
+    function rssFallbackContent(a: Article): string | null {
+        const raw = a.content || a.summary;
+        if (!raw || raw.trim().length === 0) return null;
+        return sanitizeContent(raw);
+    }
+
     async function loadReaderView() {
         if (!article) return;
         readerLoading = true;
@@ -147,22 +197,81 @@
         readerReady = false;
 
         try {
-            // Fetch the full page HTML via Rust (avoids CORS)
-            const html = await fetchPageHtml(article.url);
+            let content: string;
 
-            // Extract the article content with Readability
-            const extracted = extractArticle(html, article.url);
-            if (!extracted) {
-                readerError =
-                    "Could not extract readable content from this page.";
-                readerLoading = false;
-                return;
+            // Re-use cached extraction if we already have it for this article
+            if (cachedExtractedContent && cachedArticleUrl === article.url) {
+                content = cachedExtractedContent;
+            } else {
+                // Fetch the full page HTML via Rust (avoids CORS)
+                const html = await fetchPageHtml(article.url);
+
+                if (isBlockedPage(html)) {
+                    // Site returned a bot-protection page — try RSS content
+                    const fallback = rssFallbackContent(article);
+                    if (fallback) {
+                        console.warn(
+                            "[reader] Bot protection detected, using RSS content fallback",
+                        );
+                        content = fallback;
+                    } else {
+                        readerError =
+                            "This site's bot protection blocked the request and no RSS content is available. Try the Original view instead.";
+                        readerLoading = false;
+                        return;
+                    }
+                } else {
+                    // Extract the article content with Readability
+                    const extracted = extractArticle(html, article.url);
+                    if (extracted) {
+                        content = extracted.content;
+                    } else {
+                        // Readability failed — try RSS content as fallback
+                        const fallback = rssFallbackContent(article);
+                        if (fallback) {
+                            console.warn(
+                                "[reader] Readability extraction failed, using RSS content fallback",
+                            );
+                            content = fallback;
+                        } else {
+                            readerError =
+                                "Could not extract readable content from this page.";
+                            readerLoading = false;
+                            return;
+                        }
+                    }
+                }
+
+                // Estimate reading time from the final content
+                const plainText = content
+                    .replace(/<[^>]*>/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                readingTime = estimateReadingTime(plainText);
+                cachedExtractedContent = content;
+                cachedArticleUrl = article.url;
             }
 
-            readingTime = estimateReadingTime(extracted.textContent);
+            // Translate the extracted content if translation is enabled
+            let finalContent = content;
+            if ($translationSettings.enabled) {
+                translating = true;
+                try {
+                    finalContent = await translateHtml(
+                        content,
+                        $translationSettings.sourceLang,
+                        $translationSettings.targetLang,
+                    );
+                } catch (e) {
+                    console.error("[reader] Translation failed:", e);
+                    // Fall back to original content
+                } finally {
+                    translating = false;
+                }
+            }
 
             // Build a self-contained reader HTML document
-            const readerHtml = buildReaderHtml(extracted.content, {
+            const readerHtml = buildReaderHtml(finalContent, {
                 theme: $readerSettings.theme,
                 fontFamily: $readerSettings.fontFamily,
                 fontSizePx,
@@ -193,6 +302,35 @@
             readerError = `Failed to load article: ${e}`;
         } finally {
             readerLoading = false;
+        }
+    }
+
+    /**
+     * Toggles translation on/off and reloads the reader view.
+     * When turning on, uses current language settings.
+     * When turning off, reloads with the original extracted content.
+     */
+    function toggleTranslation() {
+        translationSettings.update((s) => ({ ...s, enabled: !s.enabled }));
+        if (article && viewMode === "reader") {
+            hideReader().catch(() => {});
+            readerReady = false;
+            tick().then(() => loadReaderView());
+        }
+    }
+
+    /**
+     * Updates a translation language setting and re-translates if active.
+     */
+    function setTranslationLang(
+        field: "sourceLang" | "targetLang",
+        value: string,
+    ) {
+        translationSettings.update((s) => ({ ...s, [field]: value }));
+        if ($translationSettings.enabled && article && viewMode === "reader") {
+            hideReader().catch(() => {});
+            readerReady = false;
+            tick().then(() => loadReaderView());
         }
     }
 
@@ -369,6 +507,72 @@
                     {#if readingTime > 0}
                         <span class="reading-time">{readingTime} min read</span>
                     {/if}
+
+                    <span class="toolbar-sep"></span>
+
+                    <div class="translate-section">
+                        <button
+                            class="tool-btn translate-toggle"
+                            class:active={$translationSettings.enabled}
+                            title={$translationSettings.enabled
+                                ? "Disable translation"
+                                : "Enable translation"}
+                            onclick={toggleTranslation}
+                        >
+                            <span class="translate-icon">&#127760;</span>
+                        </button>
+                        <button
+                            class="tool-btn translate-menu-btn"
+                            class:active={showTranslateMenu}
+                            title="Translation settings"
+                            onclick={() =>
+                                (showTranslateMenu = !showTranslateMenu)}
+                        >
+                            <span class="translate-caret">&#9662;</span>
+                        </button>
+                        {#if showTranslateMenu}
+                            <div class="translate-dropdown">
+                                <label class="translate-label">
+                                    From
+                                    <select
+                                        class="translate-select"
+                                        value={$translationSettings.sourceLang}
+                                        onchange={(e) =>
+                                            setTranslationLang(
+                                                "sourceLang",
+                                                (e.target as HTMLSelectElement)
+                                                    .value,
+                                            )}
+                                    >
+                                        {#each LANGUAGES as lang}
+                                            <option value={lang.code}
+                                                >{lang.name}</option
+                                            >
+                                        {/each}
+                                    </select>
+                                </label>
+                                <label class="translate-label">
+                                    To
+                                    <select
+                                        class="translate-select"
+                                        value={$translationSettings.targetLang}
+                                        onchange={(e) =>
+                                            setTranslationLang(
+                                                "targetLang",
+                                                (e.target as HTMLSelectElement)
+                                                    .value,
+                                            )}
+                                    >
+                                        {#each TARGET_LANGUAGES as lang}
+                                            <option value={lang.code}
+                                                >{lang.name}</option
+                                            >
+                                        {/each}
+                                    </select>
+                                </label>
+                            </div>
+                        {/if}
+                    </div>
                 </div>
             {/if}
         </header>
@@ -378,7 +582,11 @@
                 {#if readerLoading}
                     <div class="status-message">
                         <div class="spinner"></div>
-                        <p>Extracting article…</p>
+                        <p>
+                            {translating
+                                ? "Translating article…"
+                                : "Extracting article…"}
+                        </p>
                     </div>
                 {:else if readerError}
                     <div class="status-message error">
@@ -728,6 +936,113 @@
     @media (prefers-color-scheme: dark) {
         .reading-time {
             color: #777;
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Translation controls                                               */
+    /* ------------------------------------------------------------------ */
+
+    .translate-section {
+        display: flex;
+        align-items: center;
+        gap: 0.1rem;
+        position: relative;
+    }
+
+    .translate-toggle {
+        font-size: 0.88rem;
+        padding: 0.2rem 0.35rem;
+        opacity: 0.45;
+        transition:
+            opacity 0.12s ease,
+            background-color 0.12s ease;
+    }
+
+    .translate-toggle.active {
+        opacity: 1;
+        background-color: rgba(91, 155, 213, 0.12);
+    }
+
+    .translate-icon {
+        line-height: 1;
+    }
+
+    .translate-menu-btn {
+        font-size: 0.6rem;
+        padding: 0.2rem 0.2rem;
+        opacity: 0.4;
+    }
+
+    .translate-menu-btn.active {
+        opacity: 0.8;
+    }
+
+    .translate-caret {
+        line-height: 1;
+    }
+
+    .translate-dropdown {
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        left: 0;
+        z-index: 100;
+        background-color: #ffffff;
+        border: 1px solid #d0d0d0;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        padding: 0.6rem 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        min-width: 170px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .translate-dropdown {
+            background-color: #2a2a2a;
+            border-color: #555;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+    }
+
+    .translate-label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .translate-label {
+            color: #999;
+        }
+    }
+
+    .translate-select {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.45rem;
+        border-radius: 5px;
+        border: 1px solid #d0d0d0;
+        background-color: #f9f9f9;
+        color: inherit;
+        cursor: pointer;
+        outline: none;
+        font-family: inherit;
+    }
+
+    .translate-select:focus {
+        border-color: #5b9bd5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .translate-select {
+            background-color: #333;
+            border-color: #555;
         }
     }
 
