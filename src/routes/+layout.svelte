@@ -4,6 +4,7 @@
     import AddFeedModal from "$lib/components/AddFeedModal.svelte";
     import ManageFeedsModal from "$lib/components/ManageFeedsModal.svelte";
     import { fetchFeed, refreshAllFeeds } from "$lib/services/rss";
+    import { triggerRefresh, markUpdated } from "$lib/stores/ui";
     import {
         feeds,
         activeTag,
@@ -67,8 +68,10 @@
     async function handleRefresh() {
         if (refreshing) return;
         refreshing = true;
+        triggerRefresh();
         try {
             const count = await refreshAllFeeds();
+            markUpdated();
             console.log(`Refreshed ${count} feed(s)`);
         } catch (err) {
             console.error("Refresh failed:", err);

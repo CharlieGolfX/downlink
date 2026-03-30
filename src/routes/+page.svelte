@@ -2,6 +2,7 @@
     import { sortedArticles, selectedArticle } from "$lib/stores/feeds";
     import ArticleCard from "$lib/components/ArticleCard.svelte";
     import ArticleView from "$lib/components/ArticleView.svelte";
+    import WeatherWidget from "$lib/components/WeatherWidget.svelte";
 
     function selectArticle(article: import("$lib/types/feed").Article) {
         $selectedArticle = article;
@@ -10,6 +11,7 @@
 
 <div class="two-panel">
     <aside class="sidebar">
+        <WeatherWidget />
         {#if $sortedArticles.length === 0}
             <p class="empty">No articles yet. Add a feed to get started.</p>
         {:else}

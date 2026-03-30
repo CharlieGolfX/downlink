@@ -101,6 +101,106 @@ async fn fetch_page_html(url: String) -> Result<String, String> {
     Ok(html)
 }
 
+#[tauri::command]
+async fn fetch_weather(lat: f64, lon: f64) -> Result<String, String> {
+    let url =
+        format!("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={lat}&lon={lon}");
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .header("User-Agent", "downlink/0.1.0 github.com/cgxeiji/downlink")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch weather: {}", e))?;
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    Ok(body)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GeocodingResult {
+    pub display_name: String,
+    pub lat: String,
+    pub lon: String,
+    pub name: Option<String>,
+    pub country: Option<String>,
+    pub state: Option<String>,
+}
+
+#[tauri::command]
+async fn geocode_location(query: String) -> Result<Vec<GeocodingResult>, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://nominatim.openstreetmap.org/search")
+        .query(&[
+            ("q", query.as_str()),
+            ("format", "json"),
+            ("limit", "6"),
+            ("addressdetails", "1"),
+            ("accept-language", "en"),
+        ])
+        .header("User-Agent", "downlink/0.1.0 github.com/cgxeiji/downlink")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to geocode: {}", e))?;
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read geocoding response: {}", e))?;
+
+    let raw: Vec<serde_json::Value> = serde_json::from_str(&body)
+        .map_err(|e| format!("Failed to parse geocoding JSON: {}", e))?;
+
+    let results: Vec<GeocodingResult> = raw
+        .into_iter()
+        .map(|entry| {
+            let address = entry.get("address");
+            GeocodingResult {
+                display_name: entry
+                    .get("display_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                lat: entry
+                    .get("lat")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0")
+                    .to_string(),
+                lon: entry
+                    .get("lon")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0")
+                    .to_string(),
+                name: address
+                    .and_then(|a| {
+                        a.get("city")
+                            .or_else(|| a.get("town"))
+                            .or_else(|| a.get("village"))
+                            .or_else(|| a.get("municipality"))
+                    })
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                country: address
+                    .and_then(|a| a.get("country"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                state: address
+                    .and_then(|a| a.get("state"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+            }
+        })
+        .collect();
+
+    Ok(results)
+}
+
 const ORIGINAL_WEBVIEW_LABEL: &str = "original-content";
 
 #[tauri::command]
@@ -265,6 +365,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             fetch_feed,
             fetch_page_html,
+            fetch_weather,
+            geocode_location,
             show_original,
             hide_original,
             resize_original,
