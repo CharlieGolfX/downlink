@@ -14,6 +14,112 @@
 
     const SCROLL_AMOUNT = 120;
 
+    // ── Resize state ────────────────────────────────────────────────────
+    const STORAGE_KEY = "downlink-panel-widths";
+    const CAT_MIN = 120;
+    const CAT_MAX = 320;
+    const CAT_DEFAULT = 200;
+    const SIDE_MIN = 200;
+    const SIDE_MAX = 480;
+    const SIDE_DEFAULT = 280;
+
+    let categoryWidth = $state(CAT_DEFAULT);
+    let sidebarWidth = $state(SIDE_DEFAULT);
+
+    // Which handle is being dragged: null | "category" | "sidebar"
+    let dragging = $state<"category" | "sidebar" | null>(null);
+    let dragStartX = 0;
+    let dragStartWidth = 0;
+
+    function loadWidths() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed.categoryWidth)
+                    categoryWidth = clamp(
+                        parsed.categoryWidth,
+                        CAT_MIN,
+                        CAT_MAX,
+                    );
+                if (parsed.sidebarWidth)
+                    sidebarWidth = clamp(
+                        parsed.sidebarWidth,
+                        SIDE_MIN,
+                        SIDE_MAX,
+                    );
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function saveWidths() {
+        try {
+            localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({ categoryWidth, sidebarWidth }),
+            );
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function clamp(value: number, min: number, max: number): number {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function onResizeMouseDown(handle: "category" | "sidebar", e: MouseEvent) {
+        e.preventDefault();
+        dragging = handle;
+        dragStartX = e.clientX;
+        dragStartWidth = handle === "category" ? categoryWidth : sidebarWidth;
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+        // Add a full-viewport overlay to prevent iframe/webview stealing events
+        addDragOverlay();
+    }
+
+    function onResizeMouseMove(e: MouseEvent) {
+        if (!dragging) return;
+        const delta = e.clientX - dragStartX;
+        if (dragging === "category") {
+            categoryWidth = clamp(dragStartWidth + delta, CAT_MIN, CAT_MAX);
+        } else {
+            sidebarWidth = clamp(dragStartWidth + delta, SIDE_MIN, SIDE_MAX);
+        }
+    }
+
+    function onResizeMouseUp() {
+        if (!dragging) return;
+        dragging = null;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        removeDragOverlay();
+        saveWidths();
+    }
+
+    let dragOverlay: HTMLDivElement | null = null;
+
+    function addDragOverlay() {
+        removeDragOverlay();
+        dragOverlay = document.createElement("div");
+        dragOverlay.style.position = "fixed";
+        dragOverlay.style.inset = "0";
+        dragOverlay.style.zIndex = "9999";
+        dragOverlay.style.cursor = "col-resize";
+        document.body.appendChild(dragOverlay);
+    }
+
+    function removeDragOverlay() {
+        if (dragOverlay) {
+            dragOverlay.remove();
+            dragOverlay = null;
+        }
+    }
+
+    // ── Article selection & keyboard nav ─────────────────────────────────
+
     function selectArticle(article: import("$lib/types/feed").Article) {
         $selectedArticle = article;
         if (!article.read) {
@@ -32,7 +138,6 @@
 
         let nextIndex: number;
         if (currentIndex === -1) {
-            // Nothing selected — pick first or last depending on direction
             nextIndex = direction === 1 ? 0 : articles.length - 1;
         } else {
             nextIndex = currentIndex + direction;
@@ -42,7 +147,6 @@
 
         selectArticle(articles[nextIndex]);
 
-        // Scroll the sidebar so the active item is visible
         requestAnimationFrame(() => {
             const active = document.querySelector(".sidebar-item.active");
             active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -52,7 +156,6 @@
     function scrollWebview(direction: -1 | 1) {
         if (!$selectedArticle) return;
         const js = `window.scrollBy({ top: ${direction * SCROLL_AMOUNT}, behavior: "smooth" })`;
-        // Fire into whichever webview is showing — one will no-op
         evalReader(js).catch(() => {});
         evalOriginal(js).catch(() => {});
     }
@@ -62,10 +165,8 @@
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        // Don't intercept when a modal is open
         if ($modalOpen) return;
 
-        // Don't intercept when the user is typing in an input / textarea / select
         const tag = (e.target as HTMLElement)?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
@@ -101,20 +202,33 @@
     }
 
     onMount(() => {
+        loadWidths();
         window.addEventListener("keydown", handleKeydown);
+        window.addEventListener("mousemove", onResizeMouseMove);
+        window.addEventListener("mouseup", onResizeMouseUp);
     });
 
     onDestroy(() => {
         window.removeEventListener("keydown", handleKeydown);
+        window.removeEventListener("mousemove", onResizeMouseMove);
+        window.removeEventListener("mouseup", onResizeMouseUp);
+        removeDragOverlay();
     });
 </script>
 
 <div class="three-panel">
-    <aside class="category-panel">
+    <aside class="category-panel" style="width: {categoryWidth}px;">
         <CategorySidebar />
     </aside>
 
-    <aside class="sidebar">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="resize-handle"
+        class:active={dragging === "category"}
+        onmousedown={(e) => onResizeMouseDown("category", e)}
+    ></div>
+
+    <aside class="sidebar" style="width: {sidebarWidth}px;">
         <WeatherWidget />
         {#if $sortedArticles.length === 0}
             <p class="empty">No articles yet. Add a feed to get started.</p>
@@ -135,6 +249,13 @@
         {/if}
     </aside>
 
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="resize-handle"
+        class:active={dragging === "sidebar"}
+        onmousedown={(e) => onResizeMouseDown("sidebar", e)}
+    ></div>
+
     <section class="main-content">
         <ArticleView article={$selectedArticle} />
     </section>
@@ -147,10 +268,8 @@
         overflow: hidden;
     }
 
+    /* ── Category panel (left) ───────────────────────── */
     .category-panel {
-        width: 200px;
-        min-width: 160px;
-        max-width: 240px;
         flex-shrink: 0;
         overflow-y: auto;
         border-right: 1px solid #e0e0e0;
@@ -164,10 +283,8 @@
         }
     }
 
+    /* ── Article sidebar (middle) ────────────────────── */
     .sidebar {
-        width: 20%;
-        min-width: 220px;
-        max-width: 360px;
         flex-shrink: 0;
         overflow-y: auto;
         border-right: 1px solid #e0e0e0;
@@ -181,6 +298,56 @@
         }
     }
 
+    /* ── Resize handle ───────────────────────────────── */
+    .resize-handle {
+        width: 5px;
+        flex-shrink: 0;
+        cursor: col-resize;
+        background-color: transparent;
+        position: relative;
+        z-index: 10;
+        /* Widen the hit area without taking layout space */
+        margin-left: -2px;
+        margin-right: -3px;
+        transition: background-color 0.15s ease;
+    }
+
+    .resize-handle::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        background-color: transparent;
+        transition: background-color 0.15s ease;
+    }
+
+    .resize-handle:hover::after,
+    .resize-handle.active::after {
+        background-color: #5b9bd5;
+    }
+
+    .resize-handle:hover,
+    .resize-handle.active {
+        background-color: rgba(91, 155, 213, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .resize-handle:hover,
+        .resize-handle.active {
+            background-color: rgba(91, 155, 213, 0.12);
+        }
+    }
+
+    /* ── Main content ────────────────────────────────── */
+    .main-content {
+        flex: 1;
+        overflow-y: auto;
+        min-width: 0;
+    }
+
+    /* ── Misc ────────────────────────────────────────── */
     .empty {
         color: #888;
         text-align: center;
@@ -234,11 +401,5 @@
         .sidebar-item.active {
             background-color: rgba(91, 155, 213, 0.17);
         }
-    }
-
-    .main-content {
-        flex: 1;
-        overflow-y: auto;
-        min-width: 0;
     }
 </style>
