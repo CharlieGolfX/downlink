@@ -1,12 +1,17 @@
 <script lang="ts">
+    import { onMount, onDestroy } from "svelte";
     import {
         sortedArticles,
         selectedArticle,
         markArticleRead,
     } from "$lib/stores/feeds";
+    import { modalOpen } from "$lib/stores/ui";
+    import { evalReader, evalOriginal } from "$lib/services/webview";
     import ArticleCard from "$lib/components/ArticleCard.svelte";
     import ArticleView from "$lib/components/ArticleView.svelte";
     import WeatherWidget from "$lib/components/WeatherWidget.svelte";
+
+    const SCROLL_AMOUNT = 120;
 
     function selectArticle(article: import("$lib/types/feed").Article) {
         $selectedArticle = article;
@@ -14,6 +19,93 @@
             markArticleRead(article.id);
         }
     }
+
+    function navigateArticles(direction: -1 | 1) {
+        const articles = $sortedArticles;
+        if (articles.length === 0) return;
+
+        const currentId = $selectedArticle?.id ?? null;
+        const currentIndex = currentId
+            ? articles.findIndex((a) => a.id === currentId)
+            : -1;
+
+        let nextIndex: number;
+        if (currentIndex === -1) {
+            // Nothing selected — pick first or last depending on direction
+            nextIndex = direction === 1 ? 0 : articles.length - 1;
+        } else {
+            nextIndex = currentIndex + direction;
+        }
+
+        if (nextIndex < 0 || nextIndex >= articles.length) return;
+
+        selectArticle(articles[nextIndex]);
+
+        // Scroll the sidebar so the active item is visible
+        requestAnimationFrame(() => {
+            const active = document.querySelector(".sidebar-item.active");
+            active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        });
+    }
+
+    function scrollWebview(direction: -1 | 1) {
+        if (!$selectedArticle) return;
+        const js = `window.scrollBy({ top: ${direction * SCROLL_AMOUNT}, behavior: "smooth" })`;
+        // Fire into whichever webview is showing — one will no-op
+        evalReader(js).catch(() => {});
+        evalOriginal(js).catch(() => {});
+    }
+
+    function closeArticle() {
+        $selectedArticle = null;
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        // Don't intercept when a modal is open
+        if ($modalOpen) return;
+
+        // Don't intercept when the user is typing in an input / textarea / select
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+        switch (e.key) {
+            case "w":
+                e.preventDefault();
+                navigateArticles(-1);
+                break;
+            case "s":
+                e.preventDefault();
+                navigateArticles(1);
+                break;
+            case "ArrowUp":
+                if ($selectedArticle) {
+                    e.preventDefault();
+                    scrollWebview(-1);
+                }
+                break;
+            case "ArrowDown":
+                if ($selectedArticle) {
+                    e.preventDefault();
+                    scrollWebview(1);
+                }
+                break;
+            case "q":
+            case "Escape":
+                if ($selectedArticle) {
+                    e.preventDefault();
+                    closeArticle();
+                }
+                break;
+        }
+    }
+
+    onMount(() => {
+        window.addEventListener("keydown", handleKeydown);
+    });
+
+    onDestroy(() => {
+        window.removeEventListener("keydown", handleKeydown);
+    });
 </script>
 
 <div class="two-panel">

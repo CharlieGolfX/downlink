@@ -109,7 +109,7 @@
                     <label for="feed-url">Website or Feed URL</label>
                     <input
                         id="feed-url"
-                        type="url"
+                        type="text"
                         placeholder="https://example.com"
                         bind:value={url}
                         autocomplete="off"

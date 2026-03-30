@@ -155,3 +155,11 @@ export async function resizeReader(
 export async function evalReader(js: string): Promise<void> {
   await invoke("eval_reader", { js });
 }
+
+/**
+ * Evaluates JavaScript inside the original-content webview.
+ * Used for injecting scroll commands and other runtime behaviour.
+ */
+export async function evalOriginal(js: string): Promise<void> {
+  await invoke("eval_original", { js });
+}

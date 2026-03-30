@@ -35,8 +35,8 @@
 ## Reader Mode
 
 - [ ] **Progress indicator** — show a reading progress bar or percentage as the user scrolls through an article.
-- [ ] **Estimated reading time** — already partially computed; surface it more prominently in the UI.
-- [ ] **Keyboard navigation in reader** — arrow keys or vim-style keys to scroll, `Esc` to close reader.
+- [X] **Estimated reading time** — already partially computed; surface it more prominently in the UI.
+- [X] **Keyboard navigation in reader** — arrow keys or vim-style keys to scroll, `Esc` to close reader.
 - [ ] **Image lightbox** — click an image in reader mode to view it full-size in an overlay.
 - [ ] **Code block syntax highlighting** — detect `<pre>`/`<code>` blocks in extracted content and apply syntax highlighting.
 - [ ] **Remember scroll position** — when switching away from an article and coming back, restore the scroll position.

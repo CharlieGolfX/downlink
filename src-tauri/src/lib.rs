@@ -538,6 +538,14 @@ async fn eval_reader(app: tauri::AppHandle, js: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn eval_original(app: tauri::AppHandle, js: String) -> Result<(), String> {
+    if let Some(webview) = app.get_webview(ORIGINAL_WEBVIEW_LABEL) {
+        webview.eval(&js).map_err(|e: tauri::Error| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -561,6 +569,7 @@ pub fn run() {
             show_original,
             hide_original,
             resize_original,
+            eval_original,
             show_reader,
             hide_reader,
             resize_reader,
