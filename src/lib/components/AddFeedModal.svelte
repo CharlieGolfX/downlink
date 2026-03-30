@@ -39,24 +39,35 @@
         open = false;
     }
 
+    function normalizeUrl(input: string): string {
+        // If the input already has a scheme, leave it alone
+        if (/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(input)) {
+            return input;
+        }
+        // Otherwise prepend https://
+        return `https://${input}`;
+    }
+
     function handleSubmit(e: Event) {
         e.preventDefault();
 
         const trimmed = url.trim();
         if (!trimmed) {
-            error = "Please enter a feed URL.";
+            error = "Please enter a URL.";
             return;
         }
 
+        const normalized = normalizeUrl(trimmed);
+
         try {
-            new URL(trimmed);
+            new URL(normalized);
         } catch {
             error = "Please enter a valid URL.";
             return;
         }
 
         error = "";
-        onsubmit?.(trimmed, [...selectedTags]);
+        onsubmit?.(normalized, [...selectedTags]);
         close();
     }
 
