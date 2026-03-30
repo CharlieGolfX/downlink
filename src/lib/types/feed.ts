@@ -29,6 +29,7 @@ export interface FeedResult {
   description: string | null;
   logo: string | null;
   articles: ArticleResult[];
+  feed_url: string | null;
 }
 
 /** Matches the Rust `ArticleResult` struct returned inside `FeedResult`. */

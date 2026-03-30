@@ -29,14 +29,17 @@
         try {
             const result = await fetchFeed(url);
 
-            const feedId = url;
-            const feedTitle = result.title || url;
+            // Use the discovered feed URL if auto-discovery found one,
+            // otherwise keep the URL the user entered.
+            const actualUrl = result.feed_url ?? url;
+            const feedId = actualUrl;
+            const feedTitle = result.title || actualUrl;
             const feedLogo = result.logo ?? undefined;
 
             upsertFeed({
                 id: feedId,
                 title: feedTitle,
-                url,
+                url: actualUrl,
                 description: result.description ?? undefined,
                 logo: feedLogo,
                 tags,

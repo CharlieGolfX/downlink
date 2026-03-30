@@ -95,11 +95,11 @@
 
             <form onsubmit={handleSubmit}>
                 <div class="field">
-                    <label for="feed-url">Feed URL</label>
+                    <label for="feed-url">Website or Feed URL</label>
                     <input
                         id="feed-url"
                         type="url"
-                        placeholder="https://example.com/feed.xml"
+                        placeholder="https://example.com"
                         bind:value={url}
                         autocomplete="off"
                     />

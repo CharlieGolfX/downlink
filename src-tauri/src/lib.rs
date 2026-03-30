@@ -11,6 +11,9 @@ pub struct FeedResult {
     pub description: Option<String>,
     pub logo: Option<String>,
     pub articles: Vec<ArticleResult>,
+    /// When auto-discovery was used, this is the actual feed URL that was found.
+    /// `None` means the input URL was already a valid feed.
+    pub feed_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,20 +28,9 @@ pub struct ArticleResult {
     pub categories: Vec<String>,
 }
 
-#[tauri::command]
-async fn fetch_feed(url: String) -> Result<FeedResult, String> {
-    let response = reqwest::get(&url)
-        .await
-        .map_err(|e| format!("Failed to fetch feed: {}", e))?;
-
-    let body = response
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read response body: {}", e))?;
-
-    let feed =
-        feed_rs::parser::parse(&body[..]).map_err(|e| format!("Failed to parse feed: {}", e))?;
-
+/// Converts a parsed `feed_rs` feed into our `FeedResult` struct.
+/// `discovered_url` is set when auto-discovery was used to find the feed.
+fn build_feed_result(feed: feed_rs::model::Feed, discovered_url: Option<String>) -> FeedResult {
     let title = feed.title.map(|t| t.content).unwrap_or_default();
     let description = feed.description.map(|d| d.content);
     let logo = feed
@@ -79,12 +71,155 @@ async fn fetch_feed(url: String) -> Result<FeedResult, String> {
         })
         .collect();
 
-    Ok(FeedResult {
+    FeedResult {
         title,
         description,
         logo,
         articles,
-    })
+        feed_url: discovered_url,
+    }
+}
+
+/// Extracts the value of an HTML attribute from a tag string.
+/// Handles both double and single quotes.
+fn extract_attr(tag: &str, attr_name: &str) -> Option<String> {
+    let lower = tag.to_lowercase();
+    for quote in ['"', '\''] {
+        let pattern = format!("{}={}", attr_name, quote);
+        if let Some(start) = lower.find(&pattern) {
+            let value_start = start + pattern.len();
+            if let Some(end) = tag[value_start..].find(quote) {
+                return Some(tag[value_start..value_start + end].to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Scans HTML for `<link>` tags that point to RSS/Atom feeds.
+/// Returns a list of absolute feed URLs resolved against `base_url`.
+fn discover_feed_links(html: &str, base_url: &str) -> Vec<String> {
+    let mut feeds = Vec::new();
+    let base = match url::Url::parse(base_url) {
+        Ok(u) => u,
+        Err(_) => return feeds,
+    };
+
+    let html_lower = html.to_lowercase();
+    let mut search_from = 0;
+
+    while let Some(start) = html_lower[search_from..].find("<link") {
+        let abs_start = search_from + start;
+        let remaining = &html_lower[abs_start..];
+
+        if let Some(end) = remaining.find('>') {
+            // Use original-case HTML for extracting the href value
+            let tag = &html[abs_start..abs_start + end + 1];
+            let tag_lower = &html_lower[abs_start..abs_start + end + 1];
+
+            let is_feed = tag_lower.contains("application/rss+xml")
+                || tag_lower.contains("application/atom+xml")
+                || tag_lower.contains("application/feed+json");
+
+            if is_feed {
+                if let Some(href) = extract_attr(tag, "href") {
+                    if let Ok(resolved) = base.join(&href) {
+                        feeds.push(resolved.to_string());
+                    } else if href.starts_with("http") {
+                        feeds.push(href);
+                    }
+                }
+            }
+
+            search_from = abs_start + end + 1;
+        } else {
+            break;
+        }
+    }
+
+    feeds
+}
+
+/// Well-known feed paths to probe when `<link>` discovery finds nothing.
+const COMMON_FEED_PATHS: &[&str] = &[
+    "/feed",
+    "/feed.xml",
+    "/rss",
+    "/rss.xml",
+    "/atom.xml",
+    "/index.xml",
+    "/feed/rss",
+    "/feed/atom",
+    "/.rss",
+];
+
+#[tauri::command]
+async fn fetch_feed(url: String) -> Result<FeedResult, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch: {}", e))?;
+
+    let body = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    // ── 1. Try to parse the response directly as a feed ─────────────
+    if let Ok(feed) = feed_rs::parser::parse(&body[..]) {
+        return Ok(build_feed_result(feed, None));
+    }
+
+    // ── 2. Not a feed — treat the response as HTML and look for <link> tags
+    let html = String::from_utf8_lossy(&body);
+    let discovered = discover_feed_links(&html, &url);
+
+    for link in &discovered {
+        if let Ok(resp) = client.get(link).send().await {
+            if let Ok(feed_body) = resp.bytes().await {
+                if let Ok(feed) = feed_rs::parser::parse(&feed_body[..]) {
+                    return Ok(build_feed_result(feed, Some(link.clone())));
+                }
+            }
+        }
+    }
+
+    // ── 3. No <link> tags found — probe common feed paths ───────────
+    if discovered.is_empty() {
+        if let Ok(base) = url::Url::parse(&url) {
+            for path in COMMON_FEED_PATHS {
+                if let Ok(probe_url) = base.join(path) {
+                    let probe = probe_url.to_string();
+                    if let Ok(resp) = client.get(&probe).send().await {
+                        if let Ok(feed_body) = resp.bytes().await {
+                            if let Ok(feed) = feed_rs::parser::parse(&feed_body[..]) {
+                                return Ok(build_feed_result(feed, Some(probe)));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── 4. Nothing worked ───────────────────────────────────────────
+    if discovered.is_empty() {
+        Err(format!(
+            "\"{}\" is not a valid feed and no feed links were found on the page.",
+            url
+        ))
+    } else {
+        Err(format!(
+            "Found {} feed link(s) on the page but none could be parsed.",
+            discovered.len()
+        ))
+    }
 }
 
 #[tauri::command]
