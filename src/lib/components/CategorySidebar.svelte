@@ -8,17 +8,20 @@
     } from "$lib/stores/feeds";
     import { derived } from "svelte/store";
 
-    /** Total article count respecting the current feed-tag filter. */
+    /** Unread article count respecting the current feed-tag filter. */
     const totalCount = derived(
         [articles, activeTag, feeds],
         ([$articles, $activeTag, $feeds]) => {
-            if ($activeTag === "all") return $articles.length;
-            const feedIdsWithTag = new Set(
-                $feeds
-                    .filter((f) => f.tags.includes($activeTag))
-                    .map((f) => f.id),
-            );
-            return $articles.filter((a) => feedIdsWithTag.has(a.feedId)).length;
+            let filtered = $articles.filter((a) => !a.read);
+            if ($activeTag !== "all") {
+                const feedIdsWithTag = new Set(
+                    $feeds
+                        .filter((f) => f.tags.includes($activeTag))
+                        .map((f) => f.id),
+                );
+                filtered = filtered.filter((a) => feedIdsWithTag.has(a.feedId));
+            }
+            return filtered.length;
         },
     );
 

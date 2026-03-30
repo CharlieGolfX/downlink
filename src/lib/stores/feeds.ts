@@ -62,6 +62,7 @@ export const categorizedArticles = derived(
 
     const counts = new Map<string, number>();
     for (const article of filtered) {
+      if (article.read) continue;
       const category = article.categories?.[0] ?? "Uncategorized";
       counts.set(category, (counts.get(category) ?? 0) + 1);
     }
