@@ -4,25 +4,73 @@ import { sortByDateDesc } from "$lib/utils/date";
 
 export const feeds = writable<Feed[]>([]);
 export const activeTag = writable<string>("all");
+export const activeCategory = writable<string>("all");
 export const articles = writable<Article[]>([]);
 export const selectedArticle = writable<Article | null>(null);
 
-/** Articles sorted newest-first, optionally filtered by the active tag. */
+/** Articles sorted newest-first, filtered by the active tag and active category. */
 export const sortedArticles = derived(
-  [articles, activeTag, feeds],
-  ([$articles, $activeTag, $feeds]) => {
-    if ($activeTag === "all") {
-      return sortByDateDesc($articles, "publishedAt");
+  [articles, activeTag, activeCategory, feeds],
+  ([$articles, $activeTag, $activeCategory, $feeds]) => {
+    let filtered = $articles;
+
+    // Filter by feed-level tag
+    if ($activeTag !== "all") {
+      const feedIdsWithTag = new Set(
+        $feeds.filter((f) => f.tags.includes($activeTag)).map((f) => f.id),
+      );
+      filtered = filtered.filter((a) => feedIdsWithTag.has(a.feedId));
     }
 
-    // Find all feed IDs that carry the selected tag
-    const feedIdsWithTag = new Set(
-      $feeds.filter((f) => f.tags.includes($activeTag)).map((f) => f.id),
-    );
-
-    const filtered = $articles.filter((a) => feedIdsWithTag.has(a.feedId));
+    // Filter by article-level RSS category
+    if ($activeCategory !== "all") {
+      filtered = filtered.filter(
+        (a) => (a.categories?.[0] ?? "Uncategorized") === $activeCategory,
+      );
+    }
 
     return sortByDateDesc(filtered, "publishedAt");
+  },
+);
+
+/**
+ * Flat list of category names with article counts, derived from currently
+ * tag-filtered articles. Used by the CategorySidebar for display.
+ * Categories are sorted alphabetically with "Uncategorized" last.
+ */
+export const categorizedArticles = derived(
+  [articles, activeTag, feeds],
+  ([$articles, $activeTag, $feeds]) => {
+    // Apply the same feed-tag filtering
+    let filtered: Article[];
+    if ($activeTag === "all") {
+      filtered = $articles;
+    } else {
+      const feedIdsWithTag = new Set(
+        $feeds.filter((f) => f.tags.includes($activeTag)).map((f) => f.id),
+      );
+      filtered = $articles.filter((a) => feedIdsWithTag.has(a.feedId));
+    }
+
+    const counts = new Map<string, number>();
+    for (const article of filtered) {
+      const category = article.categories?.[0] ?? "Uncategorized";
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
+
+    const result: { category: string; count: number }[] = [];
+    for (const [category, count] of counts) {
+      result.push({ category, count });
+    }
+
+    // Sort categories alphabetically, but put "Uncategorized" last
+    result.sort((a, b) => {
+      if (a.category === "Uncategorized") return 1;
+      if (b.category === "Uncategorized") return -1;
+      return a.category.localeCompare(b.category);
+    });
+
+    return result;
   },
 );
 
@@ -71,9 +119,6 @@ export function removeFeed(feedId: string) {
 }
 
 /**
- * Updates only the tags on an existing feed.
- */
-/**
  * Marks a single article as read by its ID.
  */
 export function markArticleRead(articleId: string) {
@@ -82,6 +127,9 @@ export function markArticleRead(articleId: string) {
   );
 }
 
+/**
+ * Updates only the tags on an existing feed.
+ */
 export function updateFeedTags(feedId: string, tags: string[]) {
   feeds.update((list) =>
     list.map((f) => (f.id === feedId ? { ...f, tags } : f)),

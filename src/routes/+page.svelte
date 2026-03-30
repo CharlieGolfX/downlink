@@ -5,6 +5,7 @@
         selectedArticle,
         markArticleRead,
     } from "$lib/stores/feeds";
+    import CategorySidebar from "$lib/components/CategorySidebar.svelte";
     import { modalOpen } from "$lib/stores/ui";
     import { evalReader, evalOriginal } from "$lib/services/webview";
     import ArticleCard from "$lib/components/ArticleCard.svelte";
@@ -108,7 +109,11 @@
     });
 </script>
 
-<div class="two-panel">
+<div class="three-panel">
+    <aside class="category-panel">
+        <CategorySidebar />
+    </aside>
+
     <aside class="sidebar">
         <WeatherWidget />
         {#if $sortedArticles.length === 0}
@@ -136,10 +141,27 @@
 </div>
 
 <style>
-    .two-panel {
+    .three-panel {
         display: flex;
         height: 100%;
         overflow: hidden;
+    }
+
+    .category-panel {
+        width: 200px;
+        min-width: 160px;
+        max-width: 240px;
+        flex-shrink: 0;
+        overflow-y: auto;
+        border-right: 1px solid #e0e0e0;
+        background-color: #f2f2f2;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .category-panel {
+            background-color: #1e1e1e;
+            border-right-color: #3a3a3a;
+        }
     }
 
     .sidebar {
