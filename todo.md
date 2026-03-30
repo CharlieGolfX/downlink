@@ -13,7 +13,7 @@
 - [ ] **Feed folders / groups** — support nested organization beyond flat tags (e.g. "Tech > Rust", "News > Local").
 - [ ] **Feed health indicators** — show an icon or badge when a feed has been failing to fetch, with the last error message and a retry button.
 - [ ] **Duplicate detection** — detect and merge feeds that resolve to the same source (e.g. different URL variants pointing to the same RSS endpoint).
-- [ ] **Feed auto-discovery** — given a website URL (not a feed URL), attempt to discover the RSS/Atom feed link from the page's `<link>` tags.
+- [X] **Feed auto-discovery** — given a website URL (not a feed URL), attempt to discover the RSS/Atom feed link from the page's `<link>` tags.
 
 ---
 
