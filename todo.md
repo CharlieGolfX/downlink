@@ -24,7 +24,7 @@
 - [ ] **Bookmarks / saved articles** — let users star or bookmark articles for later; persist independently from feed refreshes.
 - [ ] **Full-text search** — search across all article titles and content with a quick-filter input in the sidebar.
 - [ ] **Article sorting options** — sort by date (newest/oldest first), by feed, or by unread status.
-- [ ] **Unread count badges** — show unread counts per tag and per feed in the sidebar/filter dropdown.
+- [X] **Unread count badges** — show unread counts per tag and per feed in the sidebar/filter dropdown.
 - [X] **Keyboard shortcuts** — add bindings for common actions: next/previous article (`j`/`k`), toggle reader/original (`r`), mark read (`m`), refresh (`R`), search (`/`).
 - [ ] **Open in external browser** — quick action to open the current article in the system default browser.
 - [ ] **Context menu on article cards** — right-click actions: mark read/unread, bookmark, copy link, open in browser.
