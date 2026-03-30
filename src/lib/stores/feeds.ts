@@ -12,14 +12,24 @@ import {
 
 export const feeds = writable<Feed[]>([]);
 export const activeTag = writable<string>("all");
-export const activeCategory = writable<string>("all");
+export const activeFeedId = writable<string>("all");
+export const activeSubCategory = writable<string>("all");
 export const articles = writable<Article[]>([]);
 export const selectedArticle = writable<Article | null>(null);
 
-/** Articles sorted newest-first, filtered by the active tag and active category. */
+// Reset subcategory whenever the active feed changes
+let _prevFeedId = "all";
+activeFeedId.subscribe((id) => {
+  if (id !== _prevFeedId) {
+    _prevFeedId = id;
+    activeSubCategory.set("all");
+  }
+});
+
+/** Articles sorted newest-first, filtered by the active tag, feed source, and subcategory. */
 export const sortedArticles = derived(
-  [articles, activeTag, activeCategory, feeds],
-  ([$articles, $activeTag, $activeCategory, $feeds]) => {
+  [articles, activeTag, activeFeedId, activeSubCategory, feeds],
+  ([$articles, $activeTag, $activeFeedId, $activeSubCategory, $feeds]) => {
     let filtered = $articles;
 
     // Filter by feed-level tag
@@ -30,10 +40,15 @@ export const sortedArticles = derived(
       filtered = filtered.filter((a) => feedIdsWithTag.has(a.feedId));
     }
 
-    // Filter by article-level RSS category
-    if ($activeCategory !== "all") {
+    // Filter by individual feed source
+    if ($activeFeedId !== "all") {
+      filtered = filtered.filter((a) => a.feedId === $activeFeedId);
+    }
+
+    // Filter by subcategory within the active feed
+    if ($activeFeedId !== "all" && $activeSubCategory !== "all") {
       filtered = filtered.filter(
-        (a) => (a.categories?.[0] ?? "Uncategorized") === $activeCategory,
+        (a) => (a.categories?.[0] ?? "Uncategorized") === $activeSubCategory,
       );
     }
 
@@ -42,37 +57,82 @@ export const sortedArticles = derived(
 );
 
 /**
- * Flat list of category names with article counts, derived from currently
- * tag-filtered articles. Used by the CategorySidebar for display.
+ * Sidebar items for each subscribed feed source, with its logo, title,
+ * and unread article count. Respects the current tag filter.
+ * Feeds are sorted alphabetically by title.
+ */
+export const feedSidebarItems = derived(
+  [feeds, articles, activeTag],
+  ([$feeds, $articles, $activeTag]) => {
+    // Determine which feeds are visible under the current tag filter
+    let visibleFeeds: Feed[];
+    if ($activeTag === "all") {
+      visibleFeeds = $feeds;
+    } else {
+      visibleFeeds = $feeds.filter((f) => f.tags.includes($activeTag));
+    }
+
+    const visibleFeedIds = new Set(visibleFeeds.map((f) => f.id));
+
+    // Count unread articles per feed (only for visible feeds)
+    const unreadCounts = new Map<string, number>();
+    for (const article of $articles) {
+      if (!visibleFeedIds.has(article.feedId)) continue;
+      if (article.read) continue;
+      unreadCounts.set(
+        article.feedId,
+        (unreadCounts.get(article.feedId) ?? 0) + 1,
+      );
+    }
+
+    const result: {
+      feedId: string;
+      title: string;
+      logo: string | undefined;
+      unreadCount: number;
+    }[] = visibleFeeds.map((f) => ({
+      feedId: f.id,
+      title: f.title,
+      logo: f.logo,
+      unreadCount: unreadCounts.get(f.id) ?? 0,
+    }));
+
+    // Sort alphabetically by title
+    result.sort((a, b) => a.title.localeCompare(b.title));
+
+    return result;
+  },
+);
+
+/**
+ * Subcategories for the currently active feed source, each with its
+ * unread article count. Only populated when a specific feed is selected.
  * Categories are sorted alphabetically with "Uncategorized" last.
  */
-export const categorizedArticles = derived(
-  [articles, activeTag, feeds],
-  ([$articles, $activeTag, $feeds]) => {
-    // Apply the same feed-tag filtering
-    let filtered: Article[];
-    if ($activeTag === "all") {
-      filtered = $articles;
-    } else {
-      const feedIdsWithTag = new Set(
-        $feeds.filter((f) => f.tags.includes($activeTag)).map((f) => f.id),
-      );
-      filtered = $articles.filter((a) => feedIdsWithTag.has(a.feedId));
-    }
+export const activeFeedCategories = derived(
+  [articles, activeFeedId],
+  ([$articles, $activeFeedId]) => {
+    if ($activeFeedId === "all") return [];
 
-    const counts = new Map<string, number>();
-    for (const article of filtered) {
-      if (article.read) continue;
+    const feedArticles = $articles.filter((a) => a.feedId === $activeFeedId);
+
+    const allCategories = new Set<string>();
+    const unreadCounts = new Map<string, number>();
+
+    for (const article of feedArticles) {
       const category = article.categories?.[0] ?? "Uncategorized";
-      counts.set(category, (counts.get(category) ?? 0) + 1);
+      allCategories.add(category);
+      if (!article.read) {
+        unreadCounts.set(category, (unreadCounts.get(category) ?? 0) + 1);
+      }
     }
 
-    const result: { category: string; count: number }[] = [];
-    for (const [category, count] of counts) {
-      result.push({ category, count });
+    const result: { category: string; unreadCount: number }[] = [];
+    for (const category of allCategories) {
+      result.push({ category, unreadCount: unreadCounts.get(category) ?? 0 });
     }
 
-    // Sort categories alphabetically, but put "Uncategorized" last
+    // Sort alphabetically, "Uncategorized" last
     result.sort((a, b) => {
       if (a.category === "Uncategorized") return 1;
       if (b.category === "Uncategorized") return -1;
@@ -80,6 +140,24 @@ export const categorizedArticles = derived(
     });
 
     return result;
+  },
+);
+
+/**
+ * Total unread article count across all visible feeds (respects tag filter).
+ * Used by the sidebar "All" item.
+ */
+export const totalUnreadCount = derived(
+  [articles, activeTag, feeds],
+  ([$articles, $activeTag, $feeds]) => {
+    let filtered = $articles.filter((a) => !a.read);
+    if ($activeTag !== "all") {
+      const feedIdsWithTag = new Set(
+        $feeds.filter((f) => f.tags.includes($activeTag)).map((f) => f.id),
+      );
+      filtered = filtered.filter((a) => feedIdsWithTag.has(a.feedId));
+    }
+    return filtered.length;
   },
 );
 
@@ -137,8 +215,14 @@ export function upsertFeed(feed: Feed) {
 /**
  * Removes a feed and all of its articles from the stores.
  * Also removes them from the SQLite database.
+ * Resets the active feed filter if the removed feed was selected.
  */
 export function removeFeed(feedId: string) {
+  // Reset filter if the removed feed was the active one
+  if (get(activeFeedId) === feedId) {
+    activeFeedId.set("all");
+  }
+
   feeds.update((list) => list.filter((f) => f.id !== feedId));
   articles.update((list) => list.filter((a) => a.feedId !== feedId));
 
