@@ -18,6 +18,38 @@ export const activeSubCategory = writable<string>("all");
 export const articles = writable<Article[]>([]);
 export const selectedArticle = writable<Article | null>(null);
 
+// ── Feed health tracking ────────────────────────────────────────────
+
+export interface FeedHealthEntry {
+  error: string;
+  failedAt: string;
+}
+
+/**
+ * Per-feed health status. A feed is "healthy" when it has no entry here.
+ * When a fetch fails the feed ID is mapped to the error message and timestamp.
+ */
+export const feedHealth = writable<Map<string, FeedHealthEntry>>(new Map());
+
+/** Record a fetch failure for a feed. */
+export function setFeedError(feedId: string, error: string) {
+  feedHealth.update((map) => {
+    const next = new Map(map);
+    next.set(feedId, { error, failedAt: new Date().toISOString() });
+    return next;
+  });
+}
+
+/** Clear any recorded error for a feed (called on successful fetch). */
+export function clearFeedError(feedId: string) {
+  feedHealth.update((map) => {
+    if (!map.has(feedId)) return map;
+    const next = new Map(map);
+    next.delete(feedId);
+    return next;
+  });
+}
+
 // Reset subcategory whenever the active feed changes
 let _prevFeedId = "all";
 activeFeedId.subscribe((id) => {
@@ -63,8 +95,8 @@ export const sortedArticles = derived(
  * Feeds are sorted alphabetically by title.
  */
 export const feedSidebarItems = derived(
-  [feeds, articles, activeTag],
-  ([$feeds, $articles, $activeTag]) => {
+  [feeds, articles, activeTag, feedHealth],
+  ([$feeds, $articles, $activeTag, $feedHealth]) => {
     // Determine which feeds are visible under the current tag filter
     let visibleFeeds: Feed[];
     if ($activeTag === "all") {
@@ -91,11 +123,13 @@ export const feedSidebarItems = derived(
       title: string;
       logo: string | undefined;
       unreadCount: number;
+      health: FeedHealthEntry | null;
     }[] = visibleFeeds.map((f) => ({
       feedId: f.id,
       title: f.title,
       logo: f.logo,
       unreadCount: unreadCounts.get(f.id) ?? 0,
+      health: $feedHealth.get(f.id) ?? null,
     }));
 
     // Sort alphabetically by title
