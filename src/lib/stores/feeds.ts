@@ -7,6 +7,7 @@ import {
   dbUpdateFeedTags,
   dbUpsertArticles,
   dbMarkArticleRead,
+  dbMarkArticleUnread,
   dbRemoveArticlesByFeed,
 } from "$lib/services/db";
 
@@ -244,6 +245,21 @@ export function markArticleRead(articleId: string) {
   // Persist to DB
   dbMarkArticleRead(articleId).catch((err) =>
     console.error("Failed to persist read state:", err),
+  );
+}
+
+/**
+ * Marks a single article as unread by its ID.
+ * Persists the unread state to the SQLite database.
+ */
+export function markArticleUnread(articleId: string) {
+  articles.update((list) =>
+    list.map((a) => (a.id === articleId ? { ...a, read: false } : a)),
+  );
+
+  // Persist to DB
+  dbMarkArticleUnread(articleId).catch((err) =>
+    console.error("Failed to persist unread state:", err),
   );
 }
 

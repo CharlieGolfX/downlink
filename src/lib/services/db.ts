@@ -217,6 +217,11 @@ export async function dbMarkArticleRead(articleId: string): Promise<void> {
   await d.execute("UPDATE articles SET read = 1 WHERE id = $1", [articleId]);
 }
 
+export async function dbMarkArticleUnread(articleId: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE articles SET read = 0 WHERE id = $1", [articleId]);
+}
+
 export async function dbRemoveArticlesByFeed(feedId: string): Promise<void> {
   const d = await getDb();
   await d.execute("DELETE FROM articles WHERE feed_id = $1", [feedId]);

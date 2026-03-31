@@ -6,14 +6,32 @@
         markArticleRead,
     } from "$lib/stores/feeds";
     import CategorySidebar from "$lib/components/CategorySidebar.svelte";
+    import ArticleContextMenu from "$lib/components/ArticleContextMenu.svelte";
     import { modalOpen } from "$lib/stores/ui";
     import { evalReader, evalOriginal } from "$lib/services/webview";
     import ArticleCard from "$lib/components/ArticleCard.svelte";
     import ArticleView from "$lib/components/ArticleView.svelte";
     import WeatherWidget from "$lib/components/WeatherWidget.svelte";
     import { dbGetSetting, dbSetSetting } from "$lib/services/db";
+    import type { Article } from "$lib/types/feed";
 
     const SCROLL_AMOUNT = 120;
+
+    // ── Context menu state ──────────────────────────────────────────────
+    let contextMenuArticle = $state<Article | null>(null);
+    let contextMenuX = $state(0);
+    let contextMenuY = $state(0);
+
+    function handleArticleContextMenu(e: MouseEvent, article: Article) {
+        e.preventDefault();
+        contextMenuX = e.clientX;
+        contextMenuY = e.clientY;
+        contextMenuArticle = article;
+    }
+
+    function closeContextMenu() {
+        contextMenuArticle = null;
+    }
 
     // ── Resize state ────────────────────────────────────────────────────
     const SETTING_CAT_WIDTH = "panel-category-width";
@@ -230,6 +248,8 @@
                             class="sidebar-item"
                             class:active={$selectedArticle?.id === article.id}
                             onclick={() => selectArticle(article)}
+                            oncontextmenu={(e) =>
+                                handleArticleContextMenu(e, article)}
                         >
                             <ArticleCard {article} />
                         </button>
@@ -250,6 +270,15 @@
         <ArticleView article={$selectedArticle} />
     </section>
 </div>
+
+{#if contextMenuArticle}
+    <ArticleContextMenu
+        article={contextMenuArticle}
+        x={contextMenuX}
+        y={contextMenuY}
+        onclose={closeContextMenu}
+    />
+{/if}
 
 <style>
     .three-panel {

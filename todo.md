@@ -27,7 +27,7 @@
 - [X] **Unread count badges** — show unread counts per tag and per feed in the sidebar/filter dropdown.
 - [X] **Keyboard shortcuts** — add bindings for common actions: next/previous article (`j`/`k`), toggle reader/original (`r`), mark read (`m`), refresh (`R`), search (`/`).
 - [ ] **Open in external browser** — quick action to open the current article in the system default browser.
-- [ ] **Context menu on article cards** — right-click actions: mark read/unread, bookmark, copy link, open in browser.
+- [X] **Context menu on article cards** — right-click actions: mark read/unread, bookmark, copy link, open in browser.
 - [ ] **Article text-to-speech** — use the system TTS API to read articles aloud.
 
 ---
