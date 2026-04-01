@@ -582,7 +582,13 @@ pub fn run() {
             // ── Application menu bar ────────────────────────────────
             let settings_item =
                 MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
-            let file_submenu = Submenu::with_items(app, "File", true, &[&settings_item])?;
+            let about_item = MenuItem::with_id(app, "about", "About Downlink", true, None::<&str>)?;
+            let file_submenu =
+                Submenu::with_items(app, "File", true, &[&settings_item, &about_item])?;
+
+            let shortcuts_item =
+                MenuItem::with_id(app, "help", "Keyboard Shortcuts", true, None::<&str>)?;
+            let help_submenu = Submenu::with_items(app, "Help", true, &[&shortcuts_item])?;
 
             // On macOS we need the standard app submenu for Hide / Quit shortcuts to work.
             #[cfg(target_os = "macos")]
@@ -592,8 +598,6 @@ pub fn run() {
                     "downlink",
                     true,
                     &[
-                        &PredefinedMenuItem::about(app, Some("About Downlink"), None)?,
-                        &PredefinedMenuItem::separator(app)?,
                         &PredefinedMenuItem::hide(app, None)?,
                         &PredefinedMenuItem::hide_others(app, None)?,
                         &PredefinedMenuItem::show_all(app, None)?,
@@ -615,20 +619,28 @@ pub fn run() {
                         &PredefinedMenuItem::select_all(app, None)?,
                     ],
                 )?;
-                let menu_bar = Menu::with_items(app, &[&app_menu, &file_submenu, &edit_menu])?;
+                let menu_bar =
+                    Menu::with_items(app, &[&app_menu, &file_submenu, &edit_menu, &help_submenu])?;
                 app.set_menu(menu_bar)?;
             }
 
             #[cfg(not(target_os = "macos"))]
             {
-                let menu_bar = Menu::with_items(app, &[&file_submenu])?;
+                let menu_bar = Menu::with_items(app, &[&file_submenu, &help_submenu])?;
                 app.set_menu(menu_bar)?;
             }
 
-            app.on_menu_event(|app_handle, event| {
-                if event.id().as_ref() == "settings" {
+            app.on_menu_event(|app_handle, event| match event.id().as_ref() {
+                "settings" => {
                     let _ = app_handle.emit("open-settings", ());
                 }
+                "about" => {
+                    let _ = app_handle.emit("open-about", ());
+                }
+                "help" => {
+                    let _ = app_handle.emit("open-help", ());
+                }
+                _ => {}
             });
 
             // ── System tray ─────────────────────────────────────────

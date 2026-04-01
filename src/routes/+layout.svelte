@@ -5,6 +5,8 @@
     import AddFeedModal from "$lib/components/AddFeedModal.svelte";
     import ManageFeedsModal from "$lib/components/ManageFeedsModal.svelte";
     import SettingsModal from "$lib/components/SettingsModal.svelte";
+    import HelpWindow from "$lib/components/HelpWindow.svelte";
+    import AboutModal from "$lib/components/AboutModal.svelte";
     import { fetchFeed, refreshAllFeeds } from "$lib/services/rss";
     import { triggerRefresh, markUpdated } from "$lib/stores/ui";
     import { toasts } from "$lib/stores/toasts";
@@ -30,11 +32,15 @@
     let showAddFeed = $state(false);
     let showManageFeeds = $state(false);
     let showSettings = $state(false);
+    let showHelp = $state(false);
+    let showAbout = $state(false);
     let loading = $state(false);
     let refreshing = $state(false);
     let dbReady = $state(false);
     let unlistenTrayRefresh: UnlistenFn | null = null;
     let unlistenOpenSettings: UnlistenFn | null = null;
+    let unlistenOpenHelp: UnlistenFn | null = null;
+    let unlistenOpenAbout: UnlistenFn | null = null;
 
     /** Load persisted feeds & articles from SQLite on startup. */
     async function loadFromDb() {
@@ -149,6 +155,12 @@
         unlistenOpenSettings = await listen("open-settings", () => {
             showSettings = true;
         });
+        unlistenOpenHelp = await listen("open-help", () => {
+            showHelp = true;
+        });
+        unlistenOpenAbout = await listen("open-about", () => {
+            showAbout = true;
+        });
     }
 
     function stopTrayListener() {
@@ -159,6 +171,14 @@
         if (unlistenOpenSettings) {
             unlistenOpenSettings();
             unlistenOpenSettings = null;
+        }
+        if (unlistenOpenHelp) {
+            unlistenOpenHelp();
+            unlistenOpenHelp = null;
+        }
+        if (unlistenOpenAbout) {
+            unlistenOpenAbout();
+            unlistenOpenAbout = null;
         }
     }
 
@@ -233,6 +253,8 @@
 <AddFeedModal bind:open={showAddFeed} onsubmit={handleAddFeed} />
 <ManageFeedsModal bind:open={showManageFeeds} />
 <SettingsModal bind:open={showSettings} />
+<HelpWindow bind:open={showHelp} />
+<AboutModal bind:open={showAbout} />
 <Toast />
 
 <style>
