@@ -9,7 +9,7 @@
     import ArticleContextMenu from "$lib/components/ArticleContextMenu.svelte";
     import { modalOpen } from "$lib/stores/ui";
     import { evalReader, evalOriginal } from "$lib/services/webview";
-    import ArticleCard from "$lib/components/ArticleCard.svelte";
+    import VirtualArticleList from "$lib/components/VirtualArticleList.svelte";
     import ArticleView from "$lib/components/ArticleView.svelte";
     import WeatherWidget from "$lib/components/WeatherWidget.svelte";
     import { dbGetSetting, dbSetSetting } from "$lib/services/db";
@@ -154,11 +154,6 @@
         if (nextIndex < 0 || nextIndex >= articles.length) return;
 
         selectArticle(articles[nextIndex]);
-
-        requestAnimationFrame(() => {
-            const active = document.querySelector(".sidebar-item.active");
-            active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        });
     }
 
     function scrollWebview(direction: -1 | 1) {
@@ -241,21 +236,12 @@
         {#if $sortedArticles.length === 0}
             <p class="empty">No articles yet. Add a feed to get started.</p>
         {:else}
-            <ul class="article-list">
-                {#each $sortedArticles as article (article.id)}
-                    <li>
-                        <button
-                            class="sidebar-item"
-                            class:active={$selectedArticle?.id === article.id}
-                            onclick={() => selectArticle(article)}
-                            oncontextmenu={(e) =>
-                                handleArticleContextMenu(e, article)}
-                        >
-                            <ArticleCard {article} />
-                        </button>
-                    </li>
-                {/each}
-            </ul>
+            <VirtualArticleList
+                articles={$sortedArticles}
+                selectedId={$selectedArticle?.id ?? null}
+                onselectarticle={selectArticle}
+                oncontextmenu={handleArticleContextMenu}
+            />
         {/if}
     </aside>
 
@@ -305,7 +291,9 @@
     /* ── Article sidebar (middle) ────────────────────── */
     .sidebar {
         flex-shrink: 0;
-        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         border-right: 1px solid #e0e0e0;
         background-color: #fafafa;
     }
@@ -372,53 +360,5 @@
         text-align: center;
         padding: 2rem 1rem;
         font-size: 0.85rem;
-    }
-
-    .article-list {
-        list-style: none;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .article-list li {
-        border-bottom: 1px solid #eaeaea;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .article-list li {
-            border-bottom-color: #333;
-        }
-    }
-
-    .sidebar-item {
-        display: block;
-        width: 100%;
-        padding: 0.65rem 0.75rem;
-        text-align: left;
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: inherit;
-        font: inherit;
-        transition: background-color 0.12s ease;
-    }
-
-    .sidebar-item:hover {
-        background-color: rgba(91, 155, 213, 0.07);
-    }
-
-    .sidebar-item.active {
-        background-color: rgba(91, 155, 213, 0.13);
-        box-shadow: inset 3px 0 0 #5b9bd5;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .sidebar-item:hover {
-            background-color: rgba(91, 155, 213, 0.1);
-        }
-
-        .sidebar-item.active {
-            background-color: rgba(91, 155, 213, 0.17);
-        }
     }
 </style>
