@@ -8,7 +8,7 @@
 ## Core — Feed Management
 
 - [X] **Persist feeds & articles to disk** — feeds and articles currently live in in-memory Svelte stores and are lost on restart. Use a local database (SQLite via `tauri-plugin-sql` or a simple JSON file) so subscriptions and read state survive across sessions.
-- [ ] **OPML import / export** — allow users to import their subscriptions from other readers and export them as OPML for backup or migration.
+- [X] **OPML import / export** — allow users to import their subscriptions from other readers and export them as OPML for backup or migration.
 - [ ] **Custom tags** — the tag list is currently hardcoded in `tags.ts`. Let users create, rename, reorder, and delete their own tags.
 - [X] **Feed folders / groups** — support nested organization beyond flat tags (e.g. "Tech > Rust", "News > Local"). - Implemented by automatically categorizing feeds based on <category> elements in the feed and showing category badges on article cards.
 - [X] **Feed health indicators** — show an icon or badge when a feed has been failing to fetch, with the last error message and a retry button.
