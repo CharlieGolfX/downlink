@@ -209,6 +209,9 @@
         await loadFromDb();
         await startTrayListener();
         window.addEventListener("keydown", handleKeydown);
+
+        // Refresh all feeds on startup
+        handleRefresh();
     });
 
     onDestroy(() => {
