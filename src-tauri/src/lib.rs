@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
@@ -563,11 +564,24 @@ fn set_refresh_interval(secs: u64) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    let p = PathBuf::from(&path);
+    std::fs::read_to_string(&p).map_err(|e| format!("Failed to read file: {}", e))
+}
+
+#[tauri::command]
+fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    std::fs::write(&p, contents.as_bytes()).map_err(|e| format!("Failed to write file: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_dialog::init())
         .manage(ReaderHtml(Mutex::new(String::new())))
         .register_uri_scheme_protocol("reader", |ctx, _request| {
             let state = ctx.app_handle().state::<ReaderHtml>();
@@ -583,8 +597,19 @@ pub fn run() {
             let settings_item =
                 MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
             let about_item = MenuItem::with_id(app, "about", "About Downlink", true, None::<&str>)?;
-            let file_submenu =
-                Submenu::with_items(app, "File", true, &[&settings_item, &about_item])?;
+            let import_export_item =
+                MenuItem::with_id(app, "import-export", "Import / Export…", true, None::<&str>)?;
+            let file_submenu = Submenu::with_items(
+                app,
+                "File",
+                true,
+                &[
+                    &settings_item,
+                    &import_export_item,
+                    &PredefinedMenuItem::separator(app)?,
+                    &about_item,
+                ],
+            )?;
 
             let shortcuts_item =
                 MenuItem::with_id(app, "help", "Keyboard Shortcuts", true, None::<&str>)?;
@@ -633,6 +658,9 @@ pub fn run() {
             app.on_menu_event(|app_handle, event| match event.id().as_ref() {
                 "settings" => {
                     let _ = app_handle.emit("open-settings", ());
+                }
+                "import-export" => {
+                    let _ = app_handle.emit("open-import-export", ());
                 }
                 "about" => {
                     let _ = app_handle.emit("open-about", ());
@@ -719,7 +747,9 @@ pub fn run() {
             hide_reader,
             resize_reader,
             eval_reader,
-            set_refresh_interval
+            set_refresh_interval,
+            read_text_file,
+            write_text_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

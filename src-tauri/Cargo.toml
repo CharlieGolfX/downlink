@@ -27,3 +27,4 @@ feed-rs = "2.1"
 tokio = { version = "1", features = ["full"] }
 url = "2"
 tauri-plugin-sql = { version = "2.3.2", features = ["sqlite"] }
+tauri-plugin-dialog = "2.6.0"

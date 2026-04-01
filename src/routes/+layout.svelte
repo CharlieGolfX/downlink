@@ -7,6 +7,7 @@
     import SettingsModal from "$lib/components/SettingsModal.svelte";
     import HelpWindow from "$lib/components/HelpWindow.svelte";
     import AboutModal from "$lib/components/AboutModal.svelte";
+    import ImportExportModal from "$lib/components/ImportExportModal.svelte";
     import { fetchFeed, refreshAllFeeds } from "$lib/services/rss";
     import { triggerRefresh, markUpdated } from "$lib/stores/ui";
     import { toasts } from "$lib/stores/toasts";
@@ -34,6 +35,7 @@
     let showSettings = $state(false);
     let showHelp = $state(false);
     let showAbout = $state(false);
+    let showImportExport = $state(false);
     let loading = $state(false);
     let refreshing = $state(false);
     let dbReady = $state(false);
@@ -41,6 +43,7 @@
     let unlistenOpenSettings: UnlistenFn | null = null;
     let unlistenOpenHelp: UnlistenFn | null = null;
     let unlistenOpenAbout: UnlistenFn | null = null;
+    let unlistenOpenImportExport: UnlistenFn | null = null;
 
     /** Load persisted feeds & articles from SQLite on startup. */
     async function loadFromDb() {
@@ -161,6 +164,9 @@
         unlistenOpenAbout = await listen("open-about", () => {
             showAbout = true;
         });
+        unlistenOpenImportExport = await listen("open-import-export", () => {
+            showImportExport = true;
+        });
     }
 
     function stopTrayListener() {
@@ -179,6 +185,10 @@
         if (unlistenOpenAbout) {
             unlistenOpenAbout();
             unlistenOpenAbout = null;
+        }
+        if (unlistenOpenImportExport) {
+            unlistenOpenImportExport();
+            unlistenOpenImportExport = null;
         }
     }
 
@@ -255,6 +265,7 @@
 <SettingsModal bind:open={showSettings} />
 <HelpWindow bind:open={showHelp} />
 <AboutModal bind:open={showAbout} />
+<ImportExportModal bind:open={showImportExport} />
 <Toast />
 
 <style>
