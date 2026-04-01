@@ -74,7 +74,7 @@
 - [ ] **Theme customization** — go beyond light/dark system preference with user-selectable accent colors or full themes.
 - [ ] **Multi-window support** — open articles in separate windows for side-by-side reading.
 - [ ] **Drag and drop feed import** — drop an OPML file or a feed URL onto the window to add it.
-- [ ] **Configurable refresh interval** — let users choose the polling interval (15 min, 30 min, 1 hour, etc.) instead of the hardcoded 1-hour cycle.
+- [X] **Configurable refresh interval** — let users choose the polling interval (15 min, 30 min, 1 hour, etc.) instead of the hardcoded 1-hour cycle.
 - [ ] **Startup behavior** — option to start minimized, restore last window size/position, and auto-refresh on launch.
 
 ---
