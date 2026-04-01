@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import { onMount, onDestroy } from "svelte";
+    import { listen, type UnlistenFn } from "@tauri-apps/api/event";
     import AddFeedModal from "$lib/components/AddFeedModal.svelte";
     import ManageFeedsModal from "$lib/components/ManageFeedsModal.svelte";
     import { fetchFeed, refreshAllFeeds } from "$lib/services/rss";
@@ -21,8 +22,6 @@
         dbPruneOldArticles,
     } from "$lib/services/db";
 
-    const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-
     let { children }: { children: Snippet } = $props();
 
     let showAddFeed = $state(false);
@@ -30,7 +29,7 @@
     let loading = $state(false);
     let refreshing = $state(false);
     let dbReady = $state(false);
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let unlistenTrayRefresh: UnlistenFn | null = null;
 
     /** Load persisted feeds & articles from SQLite on startup. */
     async function loadFromDb() {
@@ -130,17 +129,17 @@
         }
     }
 
-    function startPolling() {
-        stopPolling();
-        pollTimer = setInterval(() => {
+    async function startTrayListener() {
+        stopTrayListener();
+        unlistenTrayRefresh = await listen("tray-refresh", () => {
             handleRefresh();
-        }, POLL_INTERVAL_MS);
+        });
     }
 
-    function stopPolling() {
-        if (pollTimer !== null) {
-            clearInterval(pollTimer);
-            pollTimer = null;
+    function stopTrayListener() {
+        if (unlistenTrayRefresh) {
+            unlistenTrayRefresh();
+            unlistenTrayRefresh = null;
         }
     }
 
@@ -159,12 +158,12 @@
 
     onMount(async () => {
         await loadFromDb();
-        startPolling();
+        await startTrayListener();
         window.addEventListener("keydown", handleKeydown);
     });
 
     onDestroy(() => {
-        stopPolling();
+        stopTrayListener();
         window.removeEventListener("keydown", handleKeydown);
     });
 </script>

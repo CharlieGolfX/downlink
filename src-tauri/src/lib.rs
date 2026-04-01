@@ -1,7 +1,11 @@
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use tauri::{LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl};
+use tauri::tray::TrayIconBuilder;
+use tauri::{
+    image::Image, menu::Menu, menu::MenuItem, menu::PredefinedMenuItem, Emitter, LogicalPosition,
+    LogicalSize, Manager, WebviewBuilder, WebviewUrl, WindowEvent,
+};
 
 struct ReaderHtml(Mutex<String>);
 
@@ -546,6 +550,9 @@ async fn eval_original(app: tauri::AppHandle, js: String) -> Result<(), String> 
     Ok(())
 }
 
+/// Background refresh interval — matches the frontend's POLL_INTERVAL_MS.
+const BG_REFRESH_SECS: u64 = 60 * 60; // 1 hour
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -560,6 +567,68 @@ pub fn run() {
                 .header("content-type", "text/html; charset=utf-8")
                 .body(html.as_bytes().to_vec())
                 .unwrap()
+        })
+        .setup(|app| {
+            // ── System tray ─────────────────────────────────────────
+            let show_i = MenuItem::with_id(app, "show", "Show Downlink", true, None::<&str>)?;
+            let refresh_i = MenuItem::with_id(app, "refresh", "Refresh Feeds", true, None::<&str>)?;
+            let sep = PredefinedMenuItem::separator(app)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Quit Downlink", true, None::<&str>)?;
+
+            let menu = Menu::with_items(app, &[&show_i, &refresh_i, &sep, &quit_i])?;
+
+            let icon = Image::from_bytes(include_bytes!("../icons/icon.png"))
+                .expect("failed to load tray icon");
+
+            let _tray = TrayIconBuilder::new()
+                .icon(icon)
+                .icon_as_template(true)
+                .menu(&menu)
+                .show_menu_on_left_click(true)
+                .on_menu_event(|app_handle, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(win) = app_handle.get_webview_window("main") {
+                            let _ = win.show();
+                            let _ = win.set_focus();
+                        }
+                    }
+                    "refresh" => {
+                        let _ = app_handle.emit("tray-refresh", ());
+                    }
+                    "quit" => {
+                        app_handle.exit(0);
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+
+            // ── Hide window instead of closing (close-to-tray) ──────
+            if let Some(win) = app.get_webview_window("main") {
+                let app_handle = app.handle().clone();
+                win.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        if let Some(w) = app_handle.get_webview_window("main") {
+                            let _ = w.hide();
+                        }
+                    }
+                });
+            }
+
+            // ── Background refresh timer ────────────────────────────
+            // Emits "tray-refresh" to the frontend every BG_REFRESH_SECS.
+            // The frontend handles the actual fetch logic so stores stay
+            // in sync. Works even while the window is hidden because the
+            // webview remains loaded.
+            let timer_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(BG_REFRESH_SECS)).await;
+                    let _ = timer_handle.emit("tray-refresh", ());
+                }
+            });
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             fetch_feed,
