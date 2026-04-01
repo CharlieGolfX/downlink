@@ -197,10 +197,8 @@
         flex-shrink: 0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .sidebar-header {
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .sidebar-header {
+        border-bottom-color: #3a3a3a;
     }
 
     .header-label {
@@ -259,16 +257,14 @@
         border-left-color: #d9534f;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .feed-item:hover {
-            background-color: rgba(91, 155, 213, 0.1);
-        }
-        .feed-item.active {
-            background-color: rgba(91, 155, 213, 0.17);
-        }
-        .feed-item.expanded:not(.active) {
-            background-color: rgba(91, 155, 213, 0.08);
-        }
+    :global(html.dark) .feed-item:hover {
+        background-color: rgba(91, 155, 213, 0.1);
+    }
+    :global(html.dark) .feed-item.active {
+        background-color: rgba(91, 155, 213, 0.17);
+    }
+    :global(html.dark) .feed-item.expanded:not(.active) {
+        background-color: rgba(91, 155, 213, 0.08);
     }
 
     /* ── Folder chevron ──────────────────────────────── */
@@ -323,11 +319,9 @@
         color: #5b9bd5;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .fallback-icon {
-            background-color: rgba(91, 155, 213, 0.22);
-            color: #7db8e8;
-        }
+    :global(html.dark) .fallback-icon {
+        background-color: rgba(91, 155, 213, 0.22);
+        color: #7db8e8;
     }
 
     /* ── Name ────────────────────────────────────────── */
@@ -348,10 +342,8 @@
         cursor: help;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .health-warning {
-            color: #e8756f;
-        }
+    :global(html.dark) .health-warning {
+        color: #e8756f;
     }
 
     /* ── Error detail bar ────────────────────────────── */
@@ -364,10 +356,8 @@
         border-left: 3px solid #d9534f;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .error-bar {
-            background-color: rgba(217, 83, 79, 0.1);
-        }
+    :global(html.dark) .error-bar {
+        background-color: rgba(217, 83, 79, 0.1);
     }
 
     .error-content {
@@ -385,10 +375,8 @@
         color: #d9534f;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .error-icon {
-            color: #e8756f;
-        }
+    :global(html.dark) .error-icon {
+        color: #e8756f;
     }
 
     .error-text {
@@ -411,10 +399,8 @@
         overflow: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .error-message {
-            color: #e8756f;
-        }
+    :global(html.dark) .error-message {
+        color: #e8756f;
     }
 
     .error-time {
@@ -451,16 +437,14 @@
         cursor: default;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .retry-btn {
-            border-color: #e8756f;
-            color: #e8756f;
-        }
+    :global(html.dark) .retry-btn {
+        border-color: #e8756f;
+        color: #e8756f;
+    }
 
-        .retry-btn:hover:not(:disabled) {
-            background-color: #e8756f;
-            color: #1a1a1a;
-        }
+    :global(html.dark) .retry-btn:hover:not(:disabled) {
+        background-color: #e8756f;
+        color: #1a1a1a;
     }
 
     .retry-icon {
@@ -521,13 +505,11 @@
         opacity: 1;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .subcategory-item:hover {
-            background-color: rgba(91, 155, 213, 0.1);
-        }
-        .subcategory-item.active {
-            background-color: rgba(91, 155, 213, 0.17);
-        }
+    :global(html.dark) .subcategory-item:hover {
+        background-color: rgba(91, 155, 213, 0.1);
+    }
+    :global(html.dark) .subcategory-item.active {
+        background-color: rgba(91, 155, 213, 0.17);
     }
 
     .subcategory-name {
@@ -551,10 +533,8 @@
         text-align: center;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .unread-badge {
-            background-color: rgba(91, 155, 213, 0.18);
-            color: #7db8e8;
-        }
+    :global(html.dark) .unread-badge {
+        background-color: rgba(91, 155, 213, 0.18);
+        color: #7db8e8;
     }
 </style>

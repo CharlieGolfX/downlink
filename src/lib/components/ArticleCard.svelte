@@ -65,10 +65,8 @@
         background-color: #f0f0f0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .feed-logo {
-            background-color: #3a3a3a;
-        }
+    :global(html.dark) .feed-logo {
+        background-color: #3a3a3a;
     }
 
     .card-content {
@@ -130,11 +128,9 @@
         max-width: 100%;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .category {
-            background-color: rgba(91, 155, 213, 0.15);
-            color: #7db8e8;
-        }
+    :global(html.dark) .category {
+        background-color: rgba(91, 155, 213, 0.15);
+        color: #7db8e8;
     }
 
     .summary {
@@ -160,13 +156,11 @@
         pointer-events: none;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .summary {
-            color: #aaa;
-        }
+    :global(html.dark) .summary {
+        color: #aaa;
+    }
 
-        .timestamp {
-            color: #777;
-        }
+    :global(html.dark) .timestamp {
+        color: #777;
     }
 </style>

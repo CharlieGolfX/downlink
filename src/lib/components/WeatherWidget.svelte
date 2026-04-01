@@ -383,10 +383,8 @@
         user-select: none;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .weather-widget {
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .weather-widget {
+        border-bottom-color: #3a3a3a;
     }
 
     .last-updated {
@@ -611,15 +609,13 @@
         opacity: 0.45;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .search-field input {
-            background: #333;
-            border-color: #555;
-        }
+    :global(html.dark) .search-field input {
+        background: #333;
+        border-color: #555;
+    }
 
-        .search-field input:focus {
-            border-color: #5b9bd5;
-        }
+    :global(html.dark) .search-field input:focus {
+        border-color: #5b9bd5;
     }
 
     .cancel-btn {
@@ -673,10 +669,8 @@
         overflow: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .favorites-list {
-            border-color: #444;
-        }
+    :global(html.dark) .favorites-list {
+        border-color: #444;
     }
 
     .favorites-list li {
@@ -689,10 +683,8 @@
         border-bottom: none;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .favorites-list li {
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .favorites-list li {
+        border-bottom-color: #3a3a3a;
     }
 
     .fav-btn {
@@ -715,10 +707,8 @@
         background: rgba(91, 155, 213, 0.1);
     }
 
-    @media (prefers-color-scheme: dark) {
-        .fav-btn:hover {
-            background: rgba(91, 155, 213, 0.15);
-        }
+    :global(html.dark) .fav-btn:hover {
+        background: rgba(91, 155, 213, 0.15);
     }
 
     .fav-star {
@@ -771,10 +761,8 @@
         overflow-y: auto;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .search-results {
-            border-color: #444;
-        }
+    :global(html.dark) .search-results {
+        border-color: #444;
     }
 
     .search-results li {
@@ -787,10 +775,8 @@
         border-bottom: none;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .search-results li {
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .search-results li {
+        border-bottom-color: #3a3a3a;
     }
 
     .result-btn {
@@ -811,10 +797,8 @@
         background: rgba(91, 155, 213, 0.1);
     }
 
-    @media (prefers-color-scheme: dark) {
-        .result-btn:hover {
-            background: rgba(91, 155, 213, 0.15);
-        }
+    :global(html.dark) .result-btn:hover {
+        background: rgba(91, 155, 213, 0.15);
     }
 
     .result-text {

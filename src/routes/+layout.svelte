@@ -2,6 +2,7 @@
     import type { Snippet } from "svelte";
     import { onMount, onDestroy } from "svelte";
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+    import { initTheme, destroyTheme } from "$lib/stores/theme";
     import AddFeedModal from "$lib/components/AddFeedModal.svelte";
     import ManageFeedsModal from "$lib/components/ManageFeedsModal.svelte";
     import SettingsModal from "$lib/components/SettingsModal.svelte";
@@ -207,6 +208,7 @@
 
     onMount(async () => {
         await loadFromDb();
+        await initTheme();
         await startTrayListener();
         window.addEventListener("keydown", handleKeydown);
 
@@ -216,6 +218,7 @@
 
     onDestroy(() => {
         stopTrayListener();
+        destroyTheme();
         window.removeEventListener("keydown", handleKeydown);
     });
 </script>
@@ -286,11 +289,9 @@
         background-color: #f5f5f5;
     }
 
-    @media (prefers-color-scheme: dark) {
-        :global(body) {
-            color: #e4e4e4;
-            background-color: #1a1a1a;
-        }
+    :global(html.dark) :global(body) {
+        color: #e4e4e4;
+        background-color: #1a1a1a;
     }
 
     .app {
@@ -309,11 +310,9 @@
         flex-shrink: 0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .topbar {
-            background-color: #2a2a2a;
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .topbar {
+        background-color: #2a2a2a;
+        border-bottom-color: #3a3a3a;
     }
 
     .feed-select {
@@ -331,15 +330,13 @@
         border-color: #5b9bd5;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .feed-select {
-            background-color: #333;
-            border-color: #555;
-        }
+    :global(html.dark) .feed-select {
+        background-color: #333;
+        border-color: #555;
+    }
 
-        .feed-select:focus {
-            border-color: #5b9bd5;
-        }
+    :global(html.dark) .feed-select:focus {
+        border-color: #5b9bd5;
     }
 
     .topbar-right {

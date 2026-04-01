@@ -130,14 +130,12 @@
         flex-direction: column;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .context-menu {
-            background-color: #2a2a2a;
-            border-color: #444;
-            box-shadow:
-                0 4px 16px rgba(0, 0, 0, 0.35),
-                0 1px 4px rgba(0, 0, 0, 0.2);
-        }
+    :global(html.dark) .context-menu {
+        background-color: #2a2a2a;
+        border-color: #444;
+        box-shadow:
+            0 4px 16px rgba(0, 0, 0, 0.35),
+            0 1px 4px rgba(0, 0, 0, 0.2);
     }
 
     .menu-item {
@@ -165,14 +163,12 @@
         background-color: rgba(91, 155, 213, 0.18);
     }
 
-    @media (prefers-color-scheme: dark) {
-        .menu-item:hover {
-            background-color: rgba(91, 155, 213, 0.15);
-        }
+    :global(html.dark) .menu-item:hover {
+        background-color: rgba(91, 155, 213, 0.15);
+    }
 
-        .menu-item:active {
-            background-color: rgba(91, 155, 213, 0.22);
-        }
+    :global(html.dark) .menu-item:active {
+        background-color: rgba(91, 155, 213, 0.22);
     }
 
     .menu-icon {
@@ -196,9 +192,7 @@
         background-color: #e0e0e0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .menu-separator {
-            background-color: #444;
-        }
+    :global(html.dark) .menu-separator {
+        background-color: #444;
     }
 </style>

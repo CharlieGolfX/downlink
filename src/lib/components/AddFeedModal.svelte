@@ -175,10 +175,8 @@
         overflow: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .modal {
-            background-color: #2a2a2a;
-        }
+    :global(html.dark) .modal {
+        background-color: #2a2a2a;
     }
 
     .modal-header {
@@ -189,10 +187,8 @@
         border-bottom: 1px solid #e0e0e0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .modal-header {
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .modal-header {
+        border-bottom-color: #3a3a3a;
     }
 
     .modal-header h2 {
@@ -251,11 +247,9 @@
         border-color: #5b9bd5;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .field input {
-            background-color: #333;
-            border-color: #555;
-        }
+    :global(html.dark) .field input {
+        background-color: #333;
+        border-color: #555;
     }
 
     .error {
@@ -291,20 +285,18 @@
         color: #fff;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .tag {
-            border-color: #555;
-        }
+    :global(html.dark) .tag {
+        border-color: #555;
+    }
 
-        .tag:hover {
-            border-color: #5b9bd5;
-        }
+    :global(html.dark) .tag:hover {
+        border-color: #5b9bd5;
+    }
 
-        .tag.active {
-            background-color: #5b9bd5;
-            border-color: #5b9bd5;
-            color: #fff;
-        }
+    :global(html.dark) .tag.active {
+        background-color: #5b9bd5;
+        border-color: #5b9bd5;
+        color: #fff;
     }
 
     .modal-footer {

@@ -194,9 +194,7 @@ ${outlines}
                         publishedAt: a.published_at ?? undefined,
                         read: false,
                         categories:
-                            a.categories.length > 0
-                                ? a.categories
-                                : undefined,
+                            a.categories.length > 0 ? a.categories : undefined,
                     }));
 
                     addFeedArticles(newArticles);
@@ -348,10 +346,8 @@ ${outlines}
         overflow: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .modal {
-            background-color: #2a2a2a;
-        }
+    :global(html.dark) .modal {
+        background-color: #2a2a2a;
     }
 
     .modal-header {
@@ -362,10 +358,8 @@ ${outlines}
         border-bottom: 1px solid #e0e0e0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .modal-header {
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .modal-header {
+        border-bottom-color: #3a3a3a;
     }
 
     .modal-header h2 {

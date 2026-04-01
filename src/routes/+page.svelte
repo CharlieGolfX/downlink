@@ -281,11 +281,9 @@
         background-color: #f2f2f2;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .category-panel {
-            background-color: #1e1e1e;
-            border-right-color: #3a3a3a;
-        }
+    :global(html.dark) .category-panel {
+        background-color: #1e1e1e;
+        border-right-color: #3a3a3a;
     }
 
     /* ── Article sidebar (middle) ────────────────────── */
@@ -298,11 +296,9 @@
         background-color: #fafafa;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .sidebar {
-            background-color: #222;
-            border-right-color: #3a3a3a;
-        }
+    :global(html.dark) .sidebar {
+        background-color: #222;
+        border-right-color: #3a3a3a;
     }
 
     /* ── Resize handle ───────────────────────────────── */
@@ -340,11 +336,9 @@
         background-color: rgba(91, 155, 213, 0.08);
     }
 
-    @media (prefers-color-scheme: dark) {
-        .resize-handle:hover,
-        .resize-handle.active {
-            background-color: rgba(91, 155, 213, 0.12);
-        }
+    :global(html.dark) .resize-handle:hover,
+    :global(html.dark) .resize-handle.active {
+        background-color: rgba(91, 155, 213, 0.12);
     }
 
     /* ── Main content ────────────────────────────────── */

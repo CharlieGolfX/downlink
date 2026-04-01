@@ -630,10 +630,8 @@
         flex-shrink: 0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .article-header {
-            border-bottom-color: #3a3a3a;
-        }
+    :global(html.dark) .article-header {
+        border-bottom-color: #3a3a3a;
     }
 
     /* ------------------------------------------------------------------ */
@@ -664,10 +662,8 @@
         background-color: #f0f0f0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .feed-logo {
-            background-color: #3a3a3a;
-        }
+    :global(html.dark) .feed-logo {
+        background-color: #3a3a3a;
     }
 
     .feed-title {
@@ -700,19 +696,17 @@
         color: #ccc;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .author {
-            color: #888;
-        }
-        .author::before {
-            color: #555;
-        }
-        .timestamp {
-            color: #777;
-        }
-        .timestamp::before {
-            color: #555;
-        }
+    :global(html.dark) .author {
+        color: #888;
+    }
+    :global(html.dark) .author::before {
+        color: #555;
+    }
+    :global(html.dark) .timestamp {
+        color: #777;
+    }
+    :global(html.dark) .timestamp::before {
+        color: #555;
     }
 
     /* ------------------------------------------------------------------ */
@@ -727,10 +721,8 @@
         flex-shrink: 0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .view-toggle {
-            border-color: #555;
-        }
+    :global(html.dark) .view-toggle {
+        border-color: #555;
     }
 
     .toggle-btn {
@@ -751,10 +743,8 @@
         border-right: 1px solid #d0d0d0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .toggle-btn:not(:last-child) {
-            border-right-color: #555;
-        }
+    :global(html.dark) .toggle-btn:not(:last-child) {
+        border-right-color: #555;
     }
 
     .toggle-btn:hover {
@@ -789,10 +779,8 @@
         border-top: 1px solid #eaeaea;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .reader-toolbar {
-            border-top-color: #333;
-        }
+    :global(html.dark) .reader-toolbar {
+        border-top-color: #333;
     }
 
     .toolbar-group {
@@ -808,10 +796,8 @@
         flex-shrink: 0;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .toolbar-sep {
-            background-color: #444;
-        }
+    :global(html.dark) .toolbar-sep {
+        background-color: #444;
     }
 
     /* Font size buttons */
@@ -933,10 +919,8 @@
         white-space: nowrap;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .reading-time {
-            color: #777;
-        }
+    :global(html.dark) .reading-time {
+        color: #777;
     }
 
     /* ------------------------------------------------------------------ */
@@ -998,12 +982,10 @@
         min-width: 170px;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .translate-dropdown {
-            background-color: #2a2a2a;
-            border-color: #555;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-        }
+    :global(html.dark) .translate-dropdown {
+        background-color: #2a2a2a;
+        border-color: #555;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     }
 
     .translate-label {
@@ -1017,10 +999,8 @@
         letter-spacing: 0.03em;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .translate-label {
-            color: #999;
-        }
+    :global(html.dark) .translate-label {
+        color: #999;
     }
 
     .translate-select {
@@ -1039,11 +1019,9 @@
         border-color: #5b9bd5;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .translate-select {
-            background-color: #333;
-            border-color: #555;
-        }
+    :global(html.dark) .translate-select {
+        background-color: #333;
+        border-color: #555;
     }
 
     /* ------------------------------------------------------------------ */
@@ -1086,13 +1064,11 @@
         color: #cc6666;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .status-message {
-            color: #777;
-        }
-        .status-message.error {
-            color: #e07070;
-        }
+    :global(html.dark) .status-message {
+        color: #777;
+    }
+    :global(html.dark) .status-message.error {
+        color: #e07070;
     }
 
     .spinner {

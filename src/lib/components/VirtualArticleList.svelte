@@ -212,10 +212,8 @@
         border-bottom: 1px solid #eaeaea;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .vlist-row {
-            border-bottom-color: #333;
-        }
+    :global(html.dark) .vlist-row {
+        border-bottom-color: #333;
     }
 
     .sidebar-item {
@@ -240,13 +238,11 @@
         box-shadow: inset 3px 0 0 #5b9bd5;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .sidebar-item:hover {
-            background-color: rgba(91, 155, 213, 0.1);
-        }
+    :global(html.dark) .sidebar-item:hover {
+        background-color: rgba(91, 155, 213, 0.1);
+    }
 
-        .sidebar-item.active {
-            background-color: rgba(91, 155, 213, 0.17);
-        }
+    :global(html.dark) .sidebar-item.active {
+        background-color: rgba(91, 155, 213, 0.17);
     }
 </style>

@@ -174,35 +174,33 @@
     }
 
     /* ── Dark mode ──────────────────────── */
-    @media (prefers-color-scheme: dark) {
-        .toast-error {
-            background-color: #3b1111;
-            color: #fca5a5;
-            outline-color: #7f1d1d;
-        }
+    :global(html.dark) .toast-error {
+        background-color: #3b1111;
+        color: #fca5a5;
+        outline-color: #7f1d1d;
+    }
 
-        .toast-error .toast-icon {
-            background-color: #ef4444;
-        }
+    :global(html.dark) .toast-error .toast-icon {
+        background-color: #ef4444;
+    }
 
-        .toast-success {
-            background-color: #0f2a1a;
-            color: #86efac;
-            outline-color: #14532d;
-        }
+    :global(html.dark) .toast-success {
+        background-color: #0f2a1a;
+        color: #86efac;
+        outline-color: #14532d;
+    }
 
-        .toast-success .toast-icon {
-            background-color: #22c55e;
-        }
+    :global(html.dark) .toast-success .toast-icon {
+        background-color: #22c55e;
+    }
 
-        .toast-info {
-            background-color: #111827;
-            color: #93c5fd;
-            outline-color: #1e3a5f;
-        }
+    :global(html.dark) .toast-info {
+        background-color: #111827;
+        color: #93c5fd;
+        outline-color: #1e3a5f;
+    }
 
-        .toast-info .toast-icon {
-            background-color: #3b82f6;
-        }
+    :global(html.dark) .toast-info .toast-icon {
+        background-color: #3b82f6;
     }
 </style>
