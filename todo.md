@@ -37,7 +37,7 @@
 - [X] **Progress indicator** — show a reading progress bar or percentage as the user scrolls through an article.
 - [X] **Estimated reading time** — already partially computed; surface it more prominently in the UI.
 - [X] **Keyboard navigation in reader** — arrow keys or vim-style keys to scroll, `Esc` to close reader.
-- [ ] **Image lightbox** — click an image in reader mode to view it full-size in an overlay.
+- [X] **Image lightbox** — click an image in reader mode to view it full-size in an overlay. ((Images do not load in high rez))
 - [ ] **Code block syntax highlighting** — detect `<pre>`/`<code>` blocks in extracted content and apply syntax highlighting.
 - [ ] **Remember scroll position** — when switching away from an article and coming back, restore the scroll position.
 - [ ] **Offline reader cache** — cache extracted reader HTML locally so articles can be read without a network connection.
@@ -92,7 +92,7 @@
 ## Performance & Reliability
 
 - [ ] **Feed fetch timeout & retries** — add configurable timeouts and automatic retry with backoff for unreliable feeds.
-- [ ] **Lazy-load article list** — virtualize the sidebar article list for users with thousands of articles.
+- [X] **Lazy-load article list** — virtualize the sidebar article list for users with thousands of articles.
 - [ ] **Cache feed responses** — use ETags / `If-Modified-Since` to avoid re-downloading unchanged feeds.
 - [X] **Background refresh** — refresh feeds in the background even when the window is minimized (via system tray).
 - [ ] **Error boundary UI** — graceful error states throughout the app instead of silent console errors.
