@@ -6,6 +6,8 @@
     import ManageFeedsModal from "$lib/components/ManageFeedsModal.svelte";
     import { fetchFeed, refreshAllFeeds } from "$lib/services/rss";
     import { triggerRefresh, markUpdated } from "$lib/stores/ui";
+    import { toasts } from "$lib/stores/toasts";
+    import Toast from "$lib/components/Toast.svelte";
     import {
         feeds,
         articles,
@@ -99,6 +101,13 @@
             addFeedArticles(articles);
         } catch (err) {
             console.error("Failed to add feed:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : "Unknown error";
+            toasts.error(`Failed to add feed: ${msg}`);
         } finally {
             loading = false;
         }
@@ -213,6 +222,7 @@
 
 <AddFeedModal bind:open={showAddFeed} onsubmit={handleAddFeed} />
 <ManageFeedsModal bind:open={showManageFeeds} />
+<Toast />
 
 <style>
     :global(*) {
