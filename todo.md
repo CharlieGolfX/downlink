@@ -95,7 +95,7 @@
 - [X] **Lazy-load article list** — virtualize the sidebar article list for users with thousands of articles.
 - [ ] **Cache feed responses** — use ETags / `If-Modified-Since` to avoid re-downloading unchanged feeds.
 - [X] **Background refresh** — refresh feeds in the background even when the window is minimized (via system tray).
-- [ ] **Error boundary UI** — graceful error states throughout the app instead of silent console errors.
+- [X] **Error boundary UI** — graceful error states throughout the app instead of silent console errors.
 
 ---
 
