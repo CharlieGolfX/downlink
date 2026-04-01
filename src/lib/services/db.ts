@@ -266,3 +266,69 @@ export async function dbSetSetting(key: string, value: string): Promise<void> {
     [key, value],
   );
 }
+
+// ── Size & stats ─────────────────────────────────────────────────────
+
+export interface DbStats {
+  /** Total database file size in bytes (page_count * page_size). */
+  totalBytes: number;
+  /** Number of rows in the articles table. */
+  articleCount: number;
+  /** Number of rows in the feeds table. */
+  feedCount: number;
+}
+
+/**
+ * Returns size and row-count statistics for the local database.
+ * Uses SQLite PRAGMA values to compute the on-disk file size.
+ */
+export async function dbGetStats(): Promise<DbStats> {
+  const d = await getDb();
+
+  const [pageSizeRows, pageCountRows, articleCountRows, feedCountRows] =
+    await Promise.all([
+      d.select<Array<{ page_size: number }>>("PRAGMA page_size"),
+      d.select<Array<{ page_count: number }>>("PRAGMA page_count"),
+      d.select<Array<{ cnt: number }>>("SELECT COUNT(*) AS cnt FROM articles"),
+      d.select<Array<{ cnt: number }>>("SELECT COUNT(*) AS cnt FROM feeds"),
+    ]);
+
+  const pageSize = pageSizeRows[0]?.page_size ?? 4096;
+  const pageCount = pageCountRows[0]?.page_count ?? 0;
+
+  return {
+    totalBytes: pageSize * pageCount,
+    articleCount: articleCountRows[0]?.cnt ?? 0,
+    feedCount: feedCountRows[0]?.cnt ?? 0,
+  };
+}
+
+// ── Clear cache (articles only) ──────────────────────────────────────
+
+/**
+ * Deletes **all** cached articles from the database.
+ * Feeds and settings are preserved.
+ * Returns the number of articles that were removed.
+ */
+export async function dbClearCache(): Promise<number> {
+  const d = await getDb();
+  const result = await d.execute("DELETE FROM articles");
+  // Reclaim disk space after bulk delete
+  await d.execute("VACUUM");
+  return result.rowsAffected;
+}
+
+// ── Clear all data ───────────────────────────────────────────────────
+
+/**
+ * Deletes **everything** from the database: articles, feeds, and settings.
+ * The tables themselves are kept so the app can continue operating.
+ */
+export async function dbClearAll(): Promise<void> {
+  const d = await getDb();
+  await d.execute("DELETE FROM articles");
+  await d.execute("DELETE FROM feeds");
+  await d.execute("DELETE FROM settings");
+  // Reclaim disk space after bulk delete
+  await d.execute("VACUUM");
+}

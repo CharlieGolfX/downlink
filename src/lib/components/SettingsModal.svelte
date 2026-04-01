@@ -1,10 +1,26 @@
 <script lang="ts">
     import { modalOpen } from "$lib/stores/ui";
-    import { dbGetSetting, dbSetSetting } from "$lib/services/db";
+    import {
+        dbGetSetting,
+        dbSetSetting,
+        dbGetStats,
+        dbClearCache,
+        dbClearAll,
+        type DbStats,
+    } from "$lib/services/db";
     import { toasts } from "$lib/stores/toasts";
     import { invoke } from "@tauri-apps/api/core";
     import { tick } from "svelte";
     import { themeMode, setThemeMode, type ThemeMode } from "$lib/stores/theme";
+    import {
+        feeds,
+        articles,
+        selectedArticle,
+        activeTag,
+        activeFeedId,
+        activeSubCategory,
+        feedHealth,
+    } from "$lib/stores/feeds";
 
     let {
         open = $bindable(false),
@@ -38,10 +54,24 @@
     let currentTheme = $state<ThemeMode>("system");
     let selectEl: HTMLSelectElement | undefined = $state();
 
+    // DB stats
+    let dbStats = $state<DbStats | null>(null);
+    let loadingStats = $state(false);
+
+    // Confirmation states
+    let confirmClearCache = $state(false);
+    let confirmClearAll = $state(false);
+    let clearingCache = $state(false);
+    let clearingAll = $state(false);
+
     $effect(() => {
         if (open) {
             loadSettings();
+            loadStats();
             tick().then(() => selectEl?.focus());
+            // Reset confirmation states when modal opens
+            confirmClearCache = false;
+            confirmClearAll = false;
         }
     });
 
@@ -61,8 +91,26 @@
         } catch {
             refreshInterval = DEFAULT_REFRESH;
         }
+    }
 
-        // Theme is already synced via the store subscription above
+    async function loadStats() {
+        loadingStats = true;
+        try {
+            dbStats = await dbGetStats();
+        } catch (err) {
+            console.error("Failed to load DB stats:", err);
+            dbStats = null;
+        } finally {
+            loadingStats = false;
+        }
+    }
+
+    function formatBytes(bytes: number): string {
+        if (bytes === 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const value = bytes / Math.pow(1024, i);
+        return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
     }
 
     async function handleRefreshChange(e: Event) {
@@ -71,14 +119,8 @@
         refreshInterval = value;
 
         try {
-            console.log("Saving refresh interval to DB:", value);
             await dbSetSetting("refresh-interval-secs", value);
-            console.log(
-                "DB save succeeded, invoking set_refresh_interval with secs:",
-                Number(value),
-            );
             await invoke("set_refresh_interval", { secs: Number(value) });
-            console.log("invoke succeeded");
             toasts.success("Refresh interval updated");
         } catch (err) {
             console.error("Failed to update refresh interval:", err);
@@ -108,8 +150,87 @@
         }
     }
 
+    async function handleClearCache() {
+        if (!confirmClearCache) {
+            confirmClearCache = true;
+            return;
+        }
+
+        clearingCache = true;
+        try {
+            const removed = await dbClearCache();
+            // Reset in-memory article stores
+            articles.set([]);
+            selectedArticle.set(null);
+            confirmClearCache = false;
+            toasts.success(
+                `Cleared ${removed} cached article${removed !== 1 ? "s" : ""}`,
+            );
+            await loadStats();
+        } catch (err) {
+            console.error("Failed to clear cache:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to clear cache: ${msg}`);
+        } finally {
+            clearingCache = false;
+        }
+    }
+
+    async function handleClearAll() {
+        if (!confirmClearAll) {
+            confirmClearAll = true;
+            return;
+        }
+
+        clearingAll = true;
+        try {
+            await dbClearAll();
+
+            // Reset all in-memory stores
+            feeds.set([]);
+            articles.set([]);
+            selectedArticle.set(null);
+            activeTag.set("all");
+            activeFeedId.set("all");
+            activeSubCategory.set("all");
+            feedHealth.set(new Map());
+
+            // Clear localStorage items
+            localStorage.clear();
+
+            // Reset theme to system default
+            currentTheme = "system";
+            await setThemeMode("system");
+
+            // Reset refresh interval to default
+            refreshInterval = DEFAULT_REFRESH;
+
+            confirmClearAll = false;
+            toasts.success("All data cleared");
+            await loadStats();
+        } catch (err) {
+            console.error("Failed to clear all data:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to clear all data: ${msg}`);
+        } finally {
+            clearingAll = false;
+        }
+    }
+
     function close() {
         open = false;
+        confirmClearCache = false;
+        confirmClearAll = false;
     }
 
     function handleBackdropClick(e: MouseEvent) {
@@ -120,6 +241,16 @@
 
     function handleKeydown(e: KeyboardEvent) {
         if (e.key === "Escape") {
+            if (confirmClearCache) {
+                confirmClearCache = false;
+                e.stopPropagation();
+                return;
+            }
+            if (confirmClearAll) {
+                confirmClearAll = false;
+                e.stopPropagation();
+                return;
+            }
             close();
         }
     }
@@ -146,6 +277,7 @@
             </header>
 
             <div class="body">
+                <!-- Appearance -->
                 <div class="field">
                     <label for="theme-mode">Appearance</label>
                     <div
@@ -303,6 +435,7 @@
                     </div>
                 </div>
 
+                <!-- Refresh Interval -->
                 <div class="field">
                     <label for="refresh-interval">Refresh Interval</label>
                     <select
@@ -315,6 +448,114 @@
                             <option value={opt.value}>{opt.label}</option>
                         {/each}
                     </select>
+                </div>
+
+                <hr class="divider" />
+
+                <!-- Clear Cache -->
+                <div class="field">
+                    <span class="field-label">Cache</span>
+                    <div class="stats-row">
+                        {#if loadingStats}
+                            <span class="stats-text muted">Loading…</span>
+                        {:else if dbStats}
+                            <span class="stats-text">
+                                <strong
+                                    >{formatBytes(dbStats.totalBytes)}</strong
+                                >
+                                on disk
+                                <span class="stats-sep">&middot;</span>
+                                {dbStats.articleCount} article{dbStats.articleCount !==
+                                1
+                                    ? "s"
+                                    : ""}
+                                <span class="stats-sep">&middot;</span>
+                                {dbStats.feedCount} feed{dbStats.feedCount !== 1
+                                    ? "s"
+                                    : ""}
+                            </span>
+                        {:else}
+                            <span class="stats-text muted"
+                                >Unable to load stats</span
+                            >
+                        {/if}
+                    </div>
+
+                    {#if confirmClearCache}
+                        <div class="confirm-bar">
+                            <span class="confirm-text"
+                                >Delete all cached articles?</span
+                            >
+                            <div class="confirm-actions">
+                                <button
+                                    class="btn btn-small btn-cancel"
+                                    onclick={() => (confirmClearCache = false)}
+                                    disabled={clearingCache}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    class="btn btn-small btn-danger"
+                                    onclick={handleClearCache}
+                                    disabled={clearingCache}
+                                >
+                                    {clearingCache ? "Clearing…" : "Confirm"}
+                                </button>
+                            </div>
+                        </div>
+                    {:else}
+                        <button
+                            class="btn btn-outline"
+                            onclick={handleClearCache}
+                            disabled={dbStats?.articleCount === 0}
+                        >
+                            Clear cache
+                        </button>
+                    {/if}
+                </div>
+
+                <hr class="divider" />
+
+                <!-- Clear All Data -->
+                <div class="field">
+                    <span class="field-label">Reset</span>
+                    <p class="field-description">
+                        Remove all feeds, articles, settings, and local
+                        preferences. This cannot be undone.
+                    </p>
+
+                    {#if confirmClearAll}
+                        <div class="confirm-bar danger">
+                            <span class="confirm-text"
+                                >Erase everything and reset the app?</span
+                            >
+                            <div class="confirm-actions">
+                                <button
+                                    class="btn btn-small btn-cancel"
+                                    onclick={() => (confirmClearAll = false)}
+                                    disabled={clearingAll}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    class="btn btn-small btn-danger"
+                                    onclick={handleClearAll}
+                                    disabled={clearingAll}
+                                >
+                                    {clearingAll
+                                        ? "Erasing…"
+                                        : "Erase everything"}
+                                </button>
+                            </div>
+                        </div>
+                    {:else}
+                        <button
+                            class="btn btn-outline btn-outline-danger"
+                            onclick={handleClearAll}
+                        >
+                            Clear all data
+                        </button>
+                    {/if}
                 </div>
 
                 <footer class="modal-footer">
@@ -343,8 +584,11 @@
         border-radius: 10px;
         width: 90%;
         max-width: 460px;
+        max-height: 85vh;
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
     :global(html.dark) .modal {
@@ -357,6 +601,7 @@
         justify-content: space-between;
         padding: 1rem 1.25rem;
         border-bottom: 1px solid #e0e0e0;
+        flex-shrink: 0;
     }
 
     :global(html.dark) .modal-header {
@@ -388,6 +633,7 @@
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
+        overflow-y: auto;
     }
 
     .field {
@@ -396,7 +642,8 @@
         gap: 0.4rem;
     }
 
-    .field label {
+    .field label,
+    .field-label {
         font-size: 0.8rem;
         font-weight: 600;
         text-transform: uppercase;
@@ -424,6 +671,25 @@
     :global(html.dark) .field select {
         background-color: #333;
         border-color: #555;
+    }
+
+    .field-description {
+        font-size: 0.8rem;
+        line-height: 1.4;
+        opacity: 0.6;
+        margin: 0;
+    }
+
+    /* ── Divider ──────────────────────────────────── */
+
+    .divider {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 0.25rem 0;
+    }
+
+    :global(html.dark) .divider {
+        border-top-color: #3a3a3a;
     }
 
     /* ── Theme toggle ─────────────────────────────── */
@@ -494,14 +760,72 @@
         height: 16px;
     }
 
-    /* ── Footer ───────────────────────────────────── */
+    /* ── Stats row ────────────────────────────────── */
 
-    .modal-footer {
+    .stats-row {
         display: flex;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        padding-top: 0.25rem;
+        align-items: center;
+        min-height: 1.6rem;
     }
+
+    .stats-text {
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+
+    .stats-text.muted {
+        opacity: 0.5;
+    }
+
+    .stats-text strong {
+        font-weight: 600;
+    }
+
+    .stats-sep {
+        margin: 0 0.3rem;
+        opacity: 0.35;
+    }
+
+    /* ── Confirmation bar ─────────────────────────── */
+
+    .confirm-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 8px;
+        background-color: rgba(91, 155, 213, 0.08);
+        border: 1px solid rgba(91, 155, 213, 0.2);
+    }
+
+    .confirm-bar.danger {
+        background-color: rgba(217, 83, 79, 0.08);
+        border-color: rgba(217, 83, 79, 0.25);
+    }
+
+    :global(html.dark) .confirm-bar {
+        background-color: rgba(91, 155, 213, 0.1);
+        border-color: rgba(91, 155, 213, 0.25);
+    }
+
+    :global(html.dark) .confirm-bar.danger {
+        background-color: rgba(217, 83, 79, 0.12);
+        border-color: rgba(217, 83, 79, 0.3);
+    }
+
+    .confirm-text {
+        font-size: 0.82rem;
+        font-weight: 500;
+    }
+
+    .confirm-actions {
+        display: flex;
+        gap: 0.4rem;
+        flex-shrink: 0;
+    }
+
+    /* ── Buttons ──────────────────────────────────── */
 
     .btn {
         padding: 0.45rem 1rem;
@@ -510,7 +834,19 @@
         border-radius: 6px;
         border: none;
         cursor: pointer;
-        transition: background-color 0.15s ease;
+        transition:
+            background-color 0.15s ease,
+            opacity 0.15s ease;
+    }
+
+    .btn:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
+
+    .btn-small {
+        padding: 0.3rem 0.7rem;
+        font-size: 0.78rem;
     }
 
     .btn-cancel {
@@ -519,8 +855,69 @@
         opacity: 0.7;
     }
 
-    .btn-cancel:hover {
+    .btn-cancel:hover:not(:disabled) {
         opacity: 1;
         background-color: rgba(128, 128, 128, 0.1);
+    }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid #d0d0d0;
+        color: inherit;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease;
+    }
+
+    .btn-outline:hover:not(:disabled) {
+        background-color: rgba(128, 128, 128, 0.08);
+        border-color: #bbb;
+    }
+
+    :global(html.dark) .btn-outline {
+        border-color: #555;
+    }
+
+    :global(html.dark) .btn-outline:hover:not(:disabled) {
+        background-color: rgba(128, 128, 128, 0.15);
+        border-color: #777;
+    }
+
+    .btn-outline-danger {
+        color: #c0392b;
+        border-color: rgba(217, 83, 79, 0.4);
+    }
+
+    .btn-outline-danger:hover:not(:disabled) {
+        background-color: rgba(217, 83, 79, 0.06);
+        border-color: rgba(217, 83, 79, 0.6);
+    }
+
+    :global(html.dark) .btn-outline-danger {
+        color: #e8756f;
+        border-color: rgba(217, 83, 79, 0.35);
+    }
+
+    :global(html.dark) .btn-outline-danger:hover:not(:disabled) {
+        background-color: rgba(217, 83, 79, 0.12);
+        border-color: rgba(217, 83, 79, 0.55);
+    }
+
+    .btn-danger {
+        background-color: #d9534f;
+        color: #fff;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background-color: #c9302c;
+    }
+
+    /* ── Footer ───────────────────────────────────── */
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding-top: 0.25rem;
     }
 </style>
