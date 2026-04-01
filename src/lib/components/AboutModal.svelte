@@ -97,8 +97,8 @@
                                     class="link-btn"
                                     onclick={() =>
                                         handleLinkClick(
-                                            "https://github.com/charliegolfxray/downlink",
-                                        )}>charliegolfxray/downlink</button
+                                            "https://github.com/CharlieGolfX/downlink",
+                                        )}>CharlieGolfX/downlink</button
                                 >
                             </span>
                         </div>
