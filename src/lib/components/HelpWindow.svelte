@@ -16,7 +16,7 @@
         { keys: ["S"], action: "Next article" },
         { keys: ["↑", "↓"], action: "Scroll article content" },
         { keys: ["Q", "Esc"], action: "Close article" },
-        { keys: ["⌘N", "Ctrl+N"], action: "Add new feed" },
+        { keys: ["⌘ + N", "Ctrl + N"], action: "Add new feed" },
     ];
 
     function close() {
