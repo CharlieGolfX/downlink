@@ -1,10 +1,11 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use tauri::tray::TrayIconBuilder;
 use tauri::{
-    image::Image, menu::Menu, menu::MenuItem, menu::PredefinedMenuItem, Emitter, LogicalPosition,
-    LogicalSize, Manager, WebviewBuilder, WebviewUrl, WindowEvent,
+    image::Image, menu::Menu, menu::MenuItem, menu::PredefinedMenuItem, menu::Submenu, Emitter,
+    LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl, WindowEvent,
 };
 
 struct ReaderHtml(Mutex<String>);
@@ -551,7 +552,16 @@ async fn eval_original(app: tauri::AppHandle, js: String) -> Result<(), String> 
 }
 
 /// Background refresh interval — matches the frontend's POLL_INTERVAL_MS.
-const BG_REFRESH_SECS: u64 = 60 * 60; // 1 hour
+static REFRESH_INTERVAL_SECS: AtomicU64 = AtomicU64::new(60 * 60); // default 1 hour
+
+#[tauri::command]
+fn set_refresh_interval(secs: u64) -> Result<(), String> {
+    if secs < 60 {
+        return Err("Refresh interval must be at least 60 seconds".into());
+    }
+    REFRESH_INTERVAL_SECS.store(secs, Ordering::Relaxed);
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -569,6 +579,58 @@ pub fn run() {
                 .unwrap()
         })
         .setup(|app| {
+            // ── Application menu bar ────────────────────────────────
+            let settings_item =
+                MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
+            let file_submenu = Submenu::with_items(app, "File", true, &[&settings_item])?;
+
+            // On macOS we need the standard app submenu for Hide / Quit shortcuts to work.
+            #[cfg(target_os = "macos")]
+            {
+                let app_menu = Submenu::with_items(
+                    app,
+                    "downlink",
+                    true,
+                    &[
+                        &PredefinedMenuItem::about(app, Some("About Downlink"), None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::hide(app, None)?,
+                        &PredefinedMenuItem::hide_others(app, None)?,
+                        &PredefinedMenuItem::show_all(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::quit(app, None)?,
+                    ],
+                )?;
+                let edit_menu = Submenu::with_items(
+                    app,
+                    "Edit",
+                    true,
+                    &[
+                        &PredefinedMenuItem::undo(app, None)?,
+                        &PredefinedMenuItem::redo(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::cut(app, None)?,
+                        &PredefinedMenuItem::copy(app, None)?,
+                        &PredefinedMenuItem::paste(app, None)?,
+                        &PredefinedMenuItem::select_all(app, None)?,
+                    ],
+                )?;
+                let menu_bar = Menu::with_items(app, &[&app_menu, &file_submenu, &edit_menu])?;
+                app.set_menu(menu_bar)?;
+            }
+
+            #[cfg(not(target_os = "macos"))]
+            {
+                let menu_bar = Menu::with_items(app, &[&file_submenu])?;
+                app.set_menu(menu_bar)?;
+            }
+
+            app.on_menu_event(|app_handle, event| {
+                if event.id().as_ref() == "settings" {
+                    let _ = app_handle.emit("open-settings", ());
+                }
+            });
+
             // ── System tray ─────────────────────────────────────────
             let show_i = MenuItem::with_id(app, "show", "Show Downlink", true, None::<&str>)?;
             let refresh_i = MenuItem::with_id(app, "refresh", "Refresh Feeds", true, None::<&str>)?;
@@ -616,14 +678,15 @@ pub fn run() {
             }
 
             // ── Background refresh timer ────────────────────────────
-            // Emits "tray-refresh" to the frontend every BG_REFRESH_SECS.
+            // Emits "tray-refresh" to the frontend every REFRESH_INTERVAL_SECS.
             // The frontend handles the actual fetch logic so stores stay
             // in sync. Works even while the window is hidden because the
             // webview remains loaded.
             let timer_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 loop {
-                    tokio::time::sleep(std::time::Duration::from_secs(BG_REFRESH_SECS)).await;
+                    let secs = REFRESH_INTERVAL_SECS.load(Ordering::Relaxed);
+                    tokio::time::sleep(std::time::Duration::from_secs(secs)).await;
                     let _ = timer_handle.emit("tray-refresh", ());
                 }
             });
@@ -643,7 +706,8 @@ pub fn run() {
             show_reader,
             hide_reader,
             resize_reader,
-            eval_reader
+            eval_reader,
+            set_refresh_interval
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

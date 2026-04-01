@@ -4,6 +4,7 @@
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
     import AddFeedModal from "$lib/components/AddFeedModal.svelte";
     import ManageFeedsModal from "$lib/components/ManageFeedsModal.svelte";
+    import SettingsModal from "$lib/components/SettingsModal.svelte";
     import { fetchFeed, refreshAllFeeds } from "$lib/services/rss";
     import { triggerRefresh, markUpdated } from "$lib/stores/ui";
     import { toasts } from "$lib/stores/toasts";
@@ -28,10 +29,12 @@
 
     let showAddFeed = $state(false);
     let showManageFeeds = $state(false);
+    let showSettings = $state(false);
     let loading = $state(false);
     let refreshing = $state(false);
     let dbReady = $state(false);
     let unlistenTrayRefresh: UnlistenFn | null = null;
+    let unlistenOpenSettings: UnlistenFn | null = null;
 
     /** Load persisted feeds & articles from SQLite on startup. */
     async function loadFromDb() {
@@ -143,12 +146,19 @@
         unlistenTrayRefresh = await listen("tray-refresh", () => {
             handleRefresh();
         });
+        unlistenOpenSettings = await listen("open-settings", () => {
+            showSettings = true;
+        });
     }
 
     function stopTrayListener() {
         if (unlistenTrayRefresh) {
             unlistenTrayRefresh();
             unlistenTrayRefresh = null;
+        }
+        if (unlistenOpenSettings) {
+            unlistenOpenSettings();
+            unlistenOpenSettings = null;
         }
     }
 
@@ -222,6 +232,7 @@
 
 <AddFeedModal bind:open={showAddFeed} onsubmit={handleAddFeed} />
 <ManageFeedsModal bind:open={showManageFeeds} />
+<SettingsModal bind:open={showSettings} />
 <Toast />
 
 <style>
