@@ -204,6 +204,9 @@ function preprocessDom(doc: Document): void {
  * Post-processes the HTML content produced by Readability to annotate
  * images with dimension hints so the reader CSS/JS can size them properly.
  */
+/** Image file extensions used to detect whether an anchor href points to an image */
+const IMG_EXTENSIONS = /\.(jpe?g|png|gif|webp|avif|bmp|tiff?|svg)(\?.*)?$/i;
+
 function postprocessContent(html: string, baseUrl: string): string {
   const doc = new DOMParser().parseFromString(
     `<!DOCTYPE html><html><head><base href="${baseUrl}"></head><body>${html}</body></html>`,
@@ -234,6 +237,73 @@ function postprocessContent(html: string, baseUrl: string): string {
         img.setAttribute("src", protocol + src);
       } catch {
         // leave as-is
+      }
+    }
+
+    // ── Preserve srcset for lightbox hi-res selection ────────────────
+    const srcset = img.getAttribute("srcset");
+    if (srcset) {
+      // Also resolve relative URLs within srcset entries
+      const resolvedSrcset = srcset
+        .split(",")
+        .map((entry) => {
+          const parts = entry.trim().split(/\s+/);
+          if (
+            parts[0] &&
+            !parts[0].startsWith("http") &&
+            !parts[0].startsWith("data:")
+          ) {
+            try {
+              parts[0] = new URL(parts[0], baseUrl).href;
+            } catch {
+              /* leave as-is */
+            }
+          }
+          return parts.join(" ");
+        })
+        .join(", ");
+      img.setAttribute("data-srcset-full", resolvedSrcset);
+    }
+
+    // ── Preserve parent <a> href if it points to a full-size image ──
+    const parent = img.parentElement;
+    if (parent && parent.tagName === "A") {
+      let anchorHref = parent.getAttribute("href") ?? "";
+      if (
+        anchorHref &&
+        !anchorHref.startsWith("http") &&
+        !anchorHref.startsWith("data:") &&
+        !anchorHref.startsWith("//")
+      ) {
+        try {
+          anchorHref = new URL(anchorHref, baseUrl).href;
+        } catch {
+          /* leave */
+        }
+      }
+      if (anchorHref && anchorHref.startsWith("//")) {
+        try {
+          anchorHref = new URL(baseUrl).protocol + anchorHref;
+        } catch {
+          /* leave */
+        }
+      }
+      if (anchorHref && IMG_EXTENSIONS.test(anchorHref)) {
+        img.setAttribute("data-anchor-href", anchorHref);
+      }
+    }
+
+    // ── Preserve hi-res data attributes that may have survived Readability ──
+    for (const attr of [
+      "data-full-src",
+      "data-orig-file",
+      "data-hi-res-src",
+      "data-large-file",
+    ]) {
+      const val = img.getAttribute(attr);
+      if (val && val.startsWith("http")) {
+        img.setAttribute("data-hires-candidate", val);
+        break;
       }
     }
 
@@ -654,6 +724,79 @@ video, audio {
 body.theme-light #progress-bar { background: #ff3b30; }
 body.theme-sepia #progress-bar { background: #d45a1e; }
 body.theme-dark  #progress-bar { background: #ff453a; }
+
+/* ── Image lightbox overlay ──────────────────────────── */
+#lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.88);
+  cursor: zoom-out;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+#lightbox-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+#lightbox-overlay img {
+  width: 94vw;
+  height: 94vh;
+  object-fit: contain;
+  border-radius: 4px;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform: scale(0.97);
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+#lightbox-overlay.visible img {
+  transform: scale(1);
+  opacity: 1;
+}
+#lightbox-close-hint {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  font-size: 1.6rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  z-index: 10001;
+  line-height: 1;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ── Lightbox spinner ────────────────────────────────── */
+#lightbox-spinner {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: rgba(255,255,255,0.8);
+  border-radius: 50%;
+  animation: lb-spin 0.7s linear infinite;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 10002;
+}
+#lightbox-overlay.loading #lightbox-spinner {
+  opacity: 1;
+  visibility: visible;
+}
+@keyframes lb-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Make images in the article look clickable */
+.reader-article img:not(.img-tiny) {
+  cursor: zoom-in;
+}
 </style>
 </head>
 <body class="theme-${options.theme}">
@@ -661,7 +804,224 @@ body.theme-dark  #progress-bar { background: #ff453a; }
   <div class="reader-article">
     ${content}
   </div>
+  <div id="lightbox-overlay"><span id="lightbox-close-hint">&times;</span><div id="lightbox-spinner"></div></div>
 ${IMAGE_SIZING_SCRIPT}
+<script>
+(function() {
+  var overlay = document.getElementById('lightbox-overlay');
+  if (!overlay) return;
+  var currentImg = null;
+  var TINY_THRESHOLD = 120;
+
+  /* ── Hi-res candidate selection ─────────────────────────────────── */
+
+  /**
+   * Parse a srcset string and return the entry with the largest width (w)
+   * descriptor, or highest pixel-density (x) descriptor.
+   * Returns the URL string or null.
+   */
+  function pickLargestFromSrcset(srcset) {
+    if (!srcset) return null;
+    var entries = srcset.split(',');
+    var bestUrl = null;
+    var bestVal = 0;
+    for (var i = 0; i < entries.length; i++) {
+      var parts = entries[i].trim().split(/\\s+/);
+      if (parts.length < 1 || !parts[0]) continue;
+      var url = parts[0];
+      var descriptor = parts[1] || '';
+      var val = 0;
+      // Width descriptor: "800w"
+      var wMatch = descriptor.match(/^(\\d+)w$/);
+      if (wMatch) {
+        val = parseInt(wMatch[1], 10);
+      } else {
+        // Density descriptor: "2x", "1.5x"
+        var xMatch = descriptor.match(/^([\\d.]+)x$/);
+        if (xMatch) {
+          // Normalise density to a comparable scale (treat 2x as 2000 "virtual width")
+          val = parseFloat(xMatch[1]) * 1000;
+        } else {
+          // No descriptor — treat as 1x baseline
+          val = 1000;
+        }
+      }
+      if (url && val > bestVal) {
+        bestVal = val;
+        bestUrl = url;
+      }
+    }
+    return bestUrl;
+  }
+
+  /**
+   * Try to derive a higher-resolution URL from common CMS / CDN URL
+   * patterns by stripping size suffixes or query parameters.
+   *
+   * Returns a different URL string, or null if no transformation applied.
+   */
+  function tryUrlUpscale(src) {
+    if (!src) return null;
+    var candidate = null;
+
+    // WordPress: /image-300x200.jpg → /image.jpg
+    var wpMatch = src.match(/^(.+)-\\d+x\\d+(\\.\\w+)(\\?.*)?$/);
+    if (wpMatch) {
+      candidate = wpMatch[1] + wpMatch[2] + (wpMatch[3] || '');
+      if (candidate !== src) return candidate;
+    }
+
+    // WordPress Photon / Jetpack / i0.wp.com: ?w=300&… or ?resize=300,200&…
+    // Strip width/resize constraints
+    if (/[?&](w|resize|fit|h)=/.test(src)) {
+      try {
+        var u = new URL(src);
+        var changed = false;
+        ['w', 'h', 'resize', 'fit', 'quality', 'crop'].forEach(function(p) {
+          if (u.searchParams.has(p)) { u.searchParams.delete(p); changed = true; }
+        });
+        if (changed) {
+          candidate = u.toString();
+          if (candidate !== src) return candidate;
+        }
+      } catch(e) {}
+    }
+
+    // Medium / Miro CDN: /max/800/ → /max/4096/
+    var mediumMatch = src.match(/^(.*\\/max\\/)(\\d+)(\\/.*)/);
+    if (mediumMatch) {
+      var curSize = parseInt(mediumMatch[2], 10);
+      if (curSize < 2000) {
+        candidate = mediumMatch[1] + '4096' + mediumMatch[3];
+        if (candidate !== src) return candidate;
+      }
+    }
+
+    // Cloudinary: /w_300,h_200,c_fill/ → /w_2000,c_limit/
+    if (/\\/[whc]_\\d+/.test(src)) {
+      candidate = src
+        .replace(/\\/w_\\d+/, '/w_2000')
+        .replace(/,h_\\d+/, '')
+        .replace(/,c_fill/, ',c_limit')
+        .replace(/,c_thumb/, ',c_limit');
+      if (candidate !== src) return candidate;
+    }
+
+    // Imgix: ?w=300&h=200 → strip sizing params
+    // (already handled by the generic query-param strip above)
+
+    // Substack CDN: /w_848,c_limit/ patterns
+    if (/\\/w_\\d+/.test(src) && src.includes('substackcdn')) {
+      candidate = src.replace(/\\/w_\\d+/, '/w_2000');
+      if (candidate !== src) return candidate;
+    }
+
+    return null;
+  }
+
+  /**
+   * Given the clicked <img> element, determine the best (highest-res)
+   * URL to show in the lightbox.
+   */
+  function chooseBestSrc(imgEl) {
+    var fallback = imgEl.src;
+
+    // 1. Explicit hi-res data attribute (set during postprocess from data-full-src etc.)
+    var hires = imgEl.getAttribute('data-hires-candidate');
+    if (hires) return hires;
+
+    // 2. Parent <a> href that points to an image file
+    var anchorHref = imgEl.getAttribute('data-anchor-href');
+    if (anchorHref) return anchorHref;
+
+    // 3. srcset — pick the largest candidate
+    var srcsetFull = imgEl.getAttribute('data-srcset-full') || imgEl.getAttribute('srcset');
+    var srcsetBest = pickLargestFromSrcset(srcsetFull);
+    if (srcsetBest && srcsetBest !== fallback) return srcsetBest;
+
+    // 4. URL heuristic upscale (WordPress thumbnails, CDN params, etc.)
+    var upscaled = tryUrlUpscale(fallback);
+    if (upscaled) return upscaled;
+
+    // 5. Fall back to the inline src
+    return fallback;
+  }
+
+  /* ── Lightbox open / close ──────────────────────────────────────── */
+
+  function openLightbox(src, fallbackSrc) {
+    // Remove any previous lightbox image (but keep the close-hint/spinner)
+    if (currentImg) { currentImg.remove(); currentImg = null; }
+    var img = document.createElement('img');
+
+    // Show spinner while loading
+    overlay.classList.add('loading');
+
+    img.addEventListener('load', function() {
+      overlay.classList.remove('loading');
+    });
+
+    img.addEventListener('error', function() {
+      overlay.classList.remove('loading');
+      // If the hi-res URL failed and we have a different fallback, try it
+      if (fallbackSrc && img.src !== fallbackSrc) {
+        img.src = fallbackSrc;
+      }
+    });
+
+    img.src = src;
+    overlay.appendChild(img);
+    currentImg = img;
+    // Force reflow then add visible class for transition
+    void overlay.offsetWidth;
+    overlay.classList.add('visible');
+  }
+
+  function closeLightbox() {
+    overlay.classList.remove('visible');
+    // Remove image after transition
+    setTimeout(function() {
+      if (currentImg) { currentImg.remove(); currentImg = null; }
+    }, 220);
+  }
+
+  // Intercept clicks on images inside the reader article
+  var article = document.querySelector('.reader-article');
+  if (article) {
+    article.addEventListener('click', function(e) {
+      // Walk up from the click target to find an <img>
+      var target = e.target;
+      if (!target || target.tagName !== 'IMG') return;
+
+      // Skip tiny images (icons, badges)
+      var w = target.naturalWidth || parseInt(target.dataset.origWidth, 10) || 0;
+      var h = target.naturalHeight || parseInt(target.dataset.origHeight, 10) || 0;
+      if (w <= TINY_THRESHOLD && h <= TINY_THRESHOLD && w > 0) return;
+
+      // Prevent default — this also blocks <a> navigation for linked images
+      e.preventDefault();
+      e.stopPropagation();
+
+      var bestSrc = chooseBestSrc(target);
+      if (!bestSrc) return;
+      openLightbox(bestSrc, target.src);
+    });
+  }
+
+  // Close on click anywhere on the overlay
+  overlay.addEventListener('click', function(e) {
+    e.preventDefault();
+    closeLightbox();
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && overlay.classList.contains('visible')) {
+      closeLightbox();
+    }
+  });
+})();
+</script>
 <script>
 (function() {
   var bar = document.getElementById('progress-bar');
