@@ -8,6 +8,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { get } from "svelte/store";
     import type { Article } from "$lib/types/feed";
+    import { generateOpml } from "$lib/utils/opml";
 
     let { open = $bindable(false) }: { open: boolean } = $props();
 
@@ -19,15 +20,6 @@
     let exporting = $state(false);
     let importProgress = $state("");
 
-    function escapeXml(s: string): string {
-        return s
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&apos;");
-    }
-
     async function handleExport() {
         exporting = true;
         try {
@@ -37,28 +29,7 @@
                 return;
             }
 
-            const outlines = allFeeds
-                .map((feed) => {
-                    const text = escapeXml(feed.title);
-                    const xmlUrl = escapeXml(feed.url);
-                    const category =
-                        feed.tags.length > 0
-                            ? ` category="${escapeXml(feed.tags.join(","))}"`
-                            : "";
-                    return `    <outline text="${text}" title="${text}" type="rss" xmlUrl="${xmlUrl}"${category} />`;
-                })
-                .join("\n");
-
-            const opmlXml = `<?xml version="1.0" encoding="UTF-8"?>
-<opml version="2.0">
-  <head>
-    <title>Downlink Feeds</title>
-    <dateCreated>${new Date().toISOString()}</dateCreated>
-  </head>
-  <body>
-${outlines}
-  </body>
-</opml>`;
+            const opmlXml = generateOpml(allFeeds);
 
             const filePath = await save({
                 title: "Export OPML",

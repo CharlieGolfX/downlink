@@ -3,6 +3,10 @@
     import { onMount, onDestroy } from "svelte";
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
     import { initTheme, destroyTheme } from "$lib/stores/theme";
+    import {
+        startBackupScheduler,
+        stopBackupScheduler,
+    } from "$lib/services/backup";
     import AddFeedModal from "$lib/components/AddFeedModal.svelte";
     import ManageFeedsModal from "$lib/components/ManageFeedsModal.svelte";
     import SettingsModal from "$lib/components/SettingsModal.svelte";
@@ -209,6 +213,7 @@
     onMount(async () => {
         await loadFromDb();
         await initTheme();
+        await startBackupScheduler();
         await startTrayListener();
         window.addEventListener("keydown", handleKeydown);
 
@@ -218,6 +223,7 @@
 
     onDestroy(() => {
         stopTrayListener();
+        stopBackupScheduler();
         destroyTheme();
         window.removeEventListener("keydown", handleKeydown);
     });

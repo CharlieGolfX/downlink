@@ -21,6 +21,16 @@
         activeSubCategory,
         feedHealth,
     } from "$lib/stores/feeds";
+    import {
+        loadBackupConfig,
+        saveBackupConfig,
+        loadBackupStatus,
+        runBackupNow,
+        type BackupConfig,
+        type BackupFrequency,
+        type BackupStatus,
+    } from "$lib/services/backup";
+    import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
     let {
         open = $bindable(false),
@@ -64,10 +74,20 @@
     let clearingCache = $state(false);
     let clearingAll = $state(false);
 
+    // Backup config state
+    let backupEnabled = $state(false);
+    let backupDirectory = $state("");
+    let backupTime = $state("03:00");
+    let backupFrequency = $state<BackupFrequency>("daily");
+    let backupStatus = $state<BackupStatus>({ lastRun: null, lastError: null });
+    let backingUp = $state(false);
+    let savingBackup = $state(false);
+
     $effect(() => {
         if (open) {
             loadSettings();
             loadStats();
+            loadBackup();
             tick().then(() => selectEl?.focus());
             // Reset confirmation states when modal opens
             confirmClearCache = false;
@@ -90,6 +110,22 @@
             }
         } catch {
             refreshInterval = DEFAULT_REFRESH;
+        }
+    }
+
+    async function loadBackup() {
+        try {
+            const [config, status] = await Promise.all([
+                loadBackupConfig(),
+                loadBackupStatus(),
+            ]);
+            backupEnabled = config.enabled;
+            backupDirectory = config.directory;
+            backupTime = config.time;
+            backupFrequency = config.frequency;
+            backupStatus = status;
+        } catch (err) {
+            console.error("Failed to load backup config:", err);
         }
     }
 
@@ -147,6 +183,120 @@
                       ? err
                       : JSON.stringify(err);
             toasts.error(`Failed to update theme: ${msg}`);
+        }
+    }
+
+    async function handleBackupToggle() {
+        backupEnabled = !backupEnabled;
+        await persistBackupConfig();
+    }
+
+    async function handlePickDirectory() {
+        try {
+            const selected = await openDialog({
+                directory: true,
+                multiple: false,
+                title: "Choose backup directory",
+            });
+            if (selected && typeof selected === "string") {
+                backupDirectory = selected;
+                await persistBackupConfig();
+            }
+        } catch (err) {
+            console.error("Failed to pick directory:", err);
+        }
+    }
+
+    async function handleBackupTimeChange(e: Event) {
+        const target = e.target as HTMLInputElement;
+        backupTime = target.value;
+        await persistBackupConfig();
+    }
+
+    async function handleBackupFrequencyChange(e: Event) {
+        const target = e.target as HTMLSelectElement;
+        backupFrequency = target.value as BackupFrequency;
+        await persistBackupConfig();
+    }
+
+    async function persistBackupConfig() {
+        savingBackup = true;
+        try {
+            const config: BackupConfig = {
+                enabled: backupEnabled,
+                directory: backupDirectory,
+                time: backupTime,
+                frequency: backupFrequency,
+            };
+            await saveBackupConfig(config);
+        } catch (err) {
+            console.error("Failed to save backup config:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to save backup settings: ${msg}`);
+        } finally {
+            savingBackup = false;
+        }
+    }
+
+    async function handleBackupNow() {
+        backingUp = true;
+        try {
+            const success = await runBackupNow();
+            if (success) {
+                toasts.success("Backup completed");
+            } else {
+                toasts.error("Backup failed — check directory permissions");
+            }
+            // Refresh status
+            backupStatus = await loadBackupStatus();
+        } catch (err) {
+            console.error("Failed to run backup:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Backup failed: ${msg}`);
+        } finally {
+            backingUp = false;
+        }
+    }
+
+    function formatLastBackup(iso: string): string {
+        try {
+            const d = new Date(iso);
+            const now = new Date();
+            const diffMs = now.getTime() - d.getTime();
+            const diffMins = Math.floor(diffMs / 60_000);
+            const diffHours = Math.floor(diffMs / 3_600_000);
+            const diffDays = Math.floor(diffMs / 86_400_000);
+
+            let relative: string;
+            if (diffMins < 1) relative = "just now";
+            else if (diffMins < 60)
+                relative = `${diffMins} min${diffMins !== 1 ? "s" : ""} ago`;
+            else if (diffHours < 24)
+                relative = `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+            else relative = `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+
+            const dateStr = d.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+            });
+            const timeStr = d.toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+
+            return `${dateStr} ${timeStr} (${relative})`;
+        } catch {
+            return iso;
         }
     }
 
@@ -448,6 +598,116 @@
                             <option value={opt.value}>{opt.label}</option>
                         {/each}
                     </select>
+                </div>
+
+                <hr class="divider" />
+
+                <!-- Automatic Backup -->
+                <div class="field">
+                    <span class="field-label">Automatic Backup</span>
+                    <p class="field-description">
+                        Automatically export your feeds as OPML to a local
+                        directory on a schedule.
+                    </p>
+
+                    <div class="backup-toggle-row">
+                        <span class="backup-toggle-label"
+                            >Enable automatic backup</span
+                        >
+                        <button
+                            class="toggle-switch"
+                            class:active={backupEnabled}
+                            role="switch"
+                            aria-checked={backupEnabled}
+                            aria-label="Enable automatic backup"
+                            onclick={handleBackupToggle}
+                        >
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </div>
+
+                    {#if backupEnabled}
+                        <div class="backup-fields">
+                            <div class="backup-field">
+                                <span class="backup-field-label">Frequency</span
+                                >
+                                <select
+                                    class="backup-frequency-select"
+                                    value={backupFrequency}
+                                    onchange={handleBackupFrequencyChange}
+                                >
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+
+                            <div class="backup-field">
+                                <span class="backup-field-label">Directory</span
+                                >
+                                <div class="backup-path-row">
+                                    <button
+                                        class="btn btn-outline backup-browse-btn"
+                                        onclick={handlePickDirectory}
+                                    >
+                                        {backupDirectory
+                                            ? "Change…"
+                                            : "Choose folder…"}
+                                    </button>
+                                    {#if backupDirectory}
+                                        <span
+                                            class="backup-path"
+                                            title={backupDirectory}
+                                        >
+                                            {backupDirectory}
+                                        </span>
+                                    {:else}
+                                        <span class="backup-path muted"
+                                            >No directory selected</span
+                                        >
+                                    {/if}
+                                </div>
+                            </div>
+
+                            <div class="backup-field">
+                                <span class="backup-field-label">Time</span>
+                                <input
+                                    type="time"
+                                    class="backup-time-input"
+                                    value={backupTime}
+                                    onchange={handleBackupTimeChange}
+                                />
+                            </div>
+
+                            <div class="backup-field">
+                                <span class="backup-field-label">Status</span>
+                                {#if backupStatus.lastRun}
+                                    <span class="backup-status">
+                                        Last backup: {formatLastBackup(
+                                            backupStatus.lastRun,
+                                        )}
+                                    </span>
+                                {:else}
+                                    <span class="backup-status muted"
+                                        >No backup yet</span
+                                    >
+                                {/if}
+                                {#if backupStatus.lastError}
+                                    <span class="backup-status error">
+                                        Last error: {backupStatus.lastError}
+                                    </span>
+                                {/if}
+                            </div>
+
+                            <button
+                                class="btn btn-outline"
+                                onclick={handleBackupNow}
+                                disabled={backingUp || !backupDirectory}
+                            >
+                                {backingUp ? "Backing up…" : "Back up now"}
+                            </button>
+                        </div>
+                    {/if}
                 </div>
 
                 <hr class="divider" />
@@ -758,6 +1018,173 @@
         justify-content: center;
         width: 16px;
         height: 16px;
+    }
+
+    /* ── Backup section ───────────────────────────── */
+
+    .backup-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .backup-toggle-label {
+        font-size: 0.85rem;
+    }
+
+    .toggle-switch {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        border-radius: 11px;
+        border: none;
+        background-color: #ccc;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        flex-shrink: 0;
+        padding: 0;
+    }
+
+    .toggle-switch.active {
+        background-color: #5b9bd5;
+    }
+
+    :global(html.dark) .toggle-switch {
+        background-color: #555;
+    }
+
+    :global(html.dark) .toggle-switch.active {
+        background-color: #5b9bd5;
+    }
+
+    .toggle-knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background-color: #fff;
+        transition: transform 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-switch.active .toggle-knob {
+        transform: translateX(18px);
+    }
+
+    .backup-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-top: 0.15rem;
+    }
+
+    .backup-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .backup-field-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        opacity: 0.5;
+    }
+
+    .backup-path-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
+    }
+
+    .backup-browse-btn {
+        flex-shrink: 0;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.8rem;
+    }
+
+    .backup-path {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        direction: rtl;
+        text-align: left;
+        opacity: 0.7;
+    }
+
+    .backup-path.muted {
+        opacity: 0.45;
+        direction: ltr;
+    }
+
+    .backup-frequency-select {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+        border-radius: 6px;
+        border: 1px solid #d0d0d0;
+        background-color: #f9f9f9;
+        color: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+        cursor: pointer;
+        appearance: auto;
+        width: 140px;
+    }
+
+    .backup-frequency-select:focus {
+        border-color: #5b9bd5;
+    }
+
+    :global(html.dark) .backup-frequency-select {
+        background-color: #333;
+        border-color: #555;
+    }
+
+    .backup-time-input {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+        border-radius: 6px;
+        border: 1px solid #d0d0d0;
+        background-color: #f9f9f9;
+        color: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+        width: 120px;
+    }
+
+    .backup-time-input:focus {
+        border-color: #5b9bd5;
+    }
+
+    :global(html.dark) .backup-time-input {
+        background-color: #333;
+        border-color: #555;
+        color-scheme: dark;
+    }
+
+    .backup-status {
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+
+    .backup-status.muted {
+        opacity: 0.45;
+    }
+
+    .backup-status.error {
+        color: #c0392b;
+        font-size: 0.78rem;
+    }
+
+    :global(html.dark) .backup-status.error {
+        color: #e8756f;
     }
 
     /* ── Stats row ────────────────────────────────── */
