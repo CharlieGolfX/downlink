@@ -550,50 +550,48 @@
                         >
                             <span class="translate-caret">&#9662;</span>
                         </button>
-                        {#if showTranslateMenu}
-                            <div class="translate-dropdown">
-                                <label class="translate-label">
-                                    From
-                                    <select
-                                        class="translate-select"
-                                        value={$translationSettings.sourceLang}
-                                        onchange={(e) =>
-                                            setTranslationLang(
-                                                "sourceLang",
-                                                (e.target as HTMLSelectElement)
-                                                    .value,
-                                            )}
-                                    >
-                                        {#each LANGUAGES as lang}
-                                            <option value={lang.code}
-                                                >{lang.name}</option
-                                            >
-                                        {/each}
-                                    </select>
-                                </label>
-                                <label class="translate-label">
-                                    To
-                                    <select
-                                        class="translate-select"
-                                        value={$translationSettings.targetLang}
-                                        onchange={(e) =>
-                                            setTranslationLang(
-                                                "targetLang",
-                                                (e.target as HTMLSelectElement)
-                                                    .value,
-                                            )}
-                                    >
-                                        {#each TARGET_LANGUAGES as lang}
-                                            <option value={lang.code}
-                                                >{lang.name}</option
-                                            >
-                                        {/each}
-                                    </select>
-                                </label>
-                            </div>
-                        {/if}
                     </div>
                 </div>
+                {#if showTranslateMenu}
+                    <div class="translate-dropdown">
+                        <label class="translate-label">
+                            From
+                            <select
+                                class="translate-select"
+                                value={$translationSettings.sourceLang}
+                                onchange={(e) =>
+                                    setTranslationLang(
+                                        "sourceLang",
+                                        (e.target as HTMLSelectElement).value,
+                                    )}
+                            >
+                                {#each LANGUAGES as lang}
+                                    <option value={lang.code}
+                                        >{lang.name}</option
+                                    >
+                                {/each}
+                            </select>
+                        </label>
+                        <label class="translate-label">
+                            To
+                            <select
+                                class="translate-select"
+                                value={$translationSettings.targetLang}
+                                onchange={(e) =>
+                                    setTranslationLang(
+                                        "targetLang",
+                                        (e.target as HTMLSelectElement).value,
+                                    )}
+                            >
+                                {#each TARGET_LANGUAGES as lang}
+                                    <option value={lang.code}
+                                        >{lang.name}</option
+                                    >
+                                {/each}
+                            </select>
+                        </label>
+                    </div>
+                {/if}
             {/if}
         </header>
 
@@ -951,7 +949,6 @@
         display: flex;
         align-items: center;
         gap: 0.1rem;
-        position: relative;
     }
 
     .translate-toggle {
@@ -987,36 +984,31 @@
     }
 
     .translate-dropdown {
-        position: absolute;
-        top: calc(100% + 0.35rem);
-        left: 0;
-        z-index: 100;
-        background-color: #ffffff;
-        border: 1px solid #d0d0d0;
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-        padding: 0.6rem 0.75rem;
         display: flex;
-        flex-direction: column;
-        gap: 0.45rem;
-        min-width: 170px;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background-color: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
     }
 
     :global(html.dark) .translate-dropdown {
         background-color: #2a2a2a;
-        border-color: #555;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        border-color: #444;
     }
 
     .translate-label {
         display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        font-size: 0.68rem;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.7rem;
         font-weight: 600;
         color: #888;
         text-transform: uppercase;
         letter-spacing: 0.03em;
+        white-space: nowrap;
     }
 
     :global(html.dark) .translate-label {
