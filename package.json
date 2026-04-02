@@ -1,7 +1,7 @@
 {
   "name": "downlink",
-  "version": "0.1.0",
-  "description": "",
+  "version": "1.0.0",
+  "description": "A desktop application for reading and managing web articles, built with SvelteKit and Tauri.",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
