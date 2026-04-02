@@ -68,14 +68,14 @@
 ## UI & Desktop Experience
 
 - [X] **Sidebar resize** — allow dragging to resize the article list sidebar width.
-- [ ] **Compact / expanded list modes** — toggle between a dense title-only list and the current card layout.
-- [ ] **System tray integration** — minimize to tray, show unread badge, and allow refresh from the tray menu.
+- [X] **Compact / expanded list modes** — toggle between a dense title-only list and the current card layout.
+- [X] **System tray integration** — minimize to tray, show unread badge, and allow refresh from the tray menu.
 - [ ] **Native notifications** — notify when new articles arrive (especially for high-priority feeds).
 - [ ] **Theme customization** — go beyond light/dark system preference with user-selectable accent colors or full themes.
 - [ ] **Multi-window support** — open articles in separate windows for side-by-side reading.
 - [ ] **Drag and drop feed import** — drop an OPML file or a feed URL onto the window to add it.
 - [X] **Configurable refresh interval** — let users choose the polling interval (15 min, 30 min, 1 hour, etc.) instead of the hardcoded 1-hour cycle.
-- [ ] **Startup behavior** — option to start minimized, restore last window size/position, and auto-refresh on launch.
+- [X] **Startup behavior** — option to start minimized, restore last window size/position, and auto-refresh on launch.
 
 ---
 
