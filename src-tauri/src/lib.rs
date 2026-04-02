@@ -711,7 +711,7 @@ pub fn run() {
 
             let menu = Menu::with_items(app, &[&show_i, &refresh_i, &sep, &quit_i])?;
 
-            let icon = Image::from_bytes(include_bytes!("../icons/icon.png"))
+            let icon = Image::from_bytes(include_bytes!("../icons/tray-icon.png"))
                 .expect("failed to load tray icon");
 
             let _tray = TrayIconBuilder::with_id("main-tray")
