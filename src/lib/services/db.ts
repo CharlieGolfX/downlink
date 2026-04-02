@@ -230,16 +230,24 @@ export async function dbRemoveArticlesByFeed(feedId: string): Promise<void> {
 // ── Pruning ──────────────────────────────────────────────────────────
 
 /**
- * Deletes articles older than 48 hours from the database.
+ * Deletes articles older than `retentionHours` hours from the database.
  *
  * Uses `published_at` (from RSS `<pubDate>` / Atom `<published>` / `<updated>`)
  * when available, falling back to `first_seen_at` (the timestamp recorded when
  * the article was first stored) for articles that lack any publication date.
- * This ensures every article can be aged out after 48 hours.
+ *
+ * @param retentionHours - Number of hours to retain articles. Defaults to 48.
+ *   Pass `0` (or `null`/`undefined` that falls through to `0`) to keep articles
+ *   forever — the function returns `0` without deleting anything.
  */
-export async function dbPruneOldArticles(): Promise<number> {
+export async function dbPruneOldArticles(
+  retentionHours?: number,
+): Promise<number> {
+  const hours = retentionHours ?? 48;
+  if (hours === 0) return 0;
+
   const d = await getDb();
-  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const result = await d.execute(
     "DELETE FROM articles WHERE COALESCE(published_at, first_seen_at) < $1",
     [cutoff],

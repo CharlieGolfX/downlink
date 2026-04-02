@@ -30,7 +30,8 @@
         evalReader,
     } from "$lib/services/webview";
     import { onDestroy, tick } from "svelte";
-    import { modalOpen } from "$lib/stores/ui";
+    import { modalOpen, defaultArticleView } from "$lib/stores/ui";
+    import { openUrl } from "@tauri-apps/plugin-opener";
 
     let { article }: { article: Article | null } = $props();
 
@@ -62,7 +63,6 @@
             // Tear down any existing webviews
             hideOriginal().catch(() => {});
             hideReader().catch(() => {});
-            viewMode = "reader";
             readerError = null;
             readerReady = false;
             readingTime = 0;
@@ -70,8 +70,28 @@
             cachedExtractedContent = null;
             cachedArticleUrl = null;
 
+            const defaultView = $defaultArticleView;
+
             if (article) {
-                tick().then(() => loadReaderView());
+                if (defaultView === "browser") {
+                    // Open in external browser, but also load reader as fallback
+                    openUrl(article.url).catch((e) =>
+                        console.error(
+                            "[article] Failed to open in browser:",
+                            e,
+                        ),
+                    );
+                    viewMode = "reader";
+                    tick().then(() => loadReaderView());
+                } else if (defaultView === "original") {
+                    viewMode = "original";
+                    tick().then(() => switchToOriginal());
+                } else {
+                    viewMode = "reader";
+                    tick().then(() => loadReaderView());
+                }
+            } else {
+                viewMode = "reader";
             }
         }
     });

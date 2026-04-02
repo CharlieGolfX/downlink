@@ -1,5 +1,14 @@
 <script lang="ts">
-    import { modalOpen } from "$lib/stores/ui";
+    import {
+        modalOpen,
+        compactMode,
+        loadCompactMode,
+        setCompactMode,
+        defaultArticleView,
+        loadDefaultArticleView,
+        setDefaultArticleView,
+        type ArticleViewDefault,
+    } from "$lib/stores/ui";
     import {
         dbGetSetting,
         dbSetSetting,
@@ -12,6 +21,12 @@
     import { invoke } from "@tauri-apps/api/core";
     import { tick } from "svelte";
     import { themeMode, setThemeMode, type ThemeMode } from "$lib/stores/theme";
+    import {
+        temperatureUnit,
+        loadTemperatureUnit,
+        setTemperatureUnit,
+        type TemperatureUnit,
+    } from "$lib/stores/weather";
     import {
         feeds,
         articles,
@@ -60,8 +75,34 @@
 
     const DEFAULT_REFRESH = "3600";
 
+    const TEMP_UNIT_OPTIONS: { label: string; value: TemperatureUnit }[] = [
+        { label: "°C", value: "metric" },
+        { label: "°F", value: "imperial" },
+    ];
+
+    const RETENTION_OPTIONS = [
+        { label: "24 hours", value: "24" },
+        { label: "48 hours", value: "48" },
+        { label: "7 days", value: "168" },
+        { label: "30 days", value: "720" },
+        { label: "Keep forever", value: "0" },
+    ];
+
+    const DEFAULT_RETENTION = "48";
+
+    const ARTICLE_VIEW_OPTIONS: { label: string; value: ArticleViewDefault }[] =
+        [
+            { label: "Reader", value: "reader" },
+            { label: "Original", value: "original" },
+            { label: "Browser", value: "browser" },
+        ];
+
     let refreshInterval = $state(DEFAULT_REFRESH);
     let currentTheme = $state<ThemeMode>("system");
+    let currentTempUnit = $state<TemperatureUnit>("metric");
+    let retentionHours = $state(DEFAULT_RETENTION);
+    let currentCompact = $state(false);
+    let currentArticleView = $state<ArticleViewDefault>("reader");
     let selectEl: HTMLSelectElement | undefined = $state();
 
     // DB stats
@@ -83,11 +124,29 @@
     let backingUp = $state(false);
     let savingBackup = $state(false);
 
+    // Keep temp unit in sync with the store
+    $effect(() => {
+        currentTempUnit = $temperatureUnit;
+    });
+
+    // Keep compact mode in sync with the store
+    $effect(() => {
+        currentCompact = $compactMode;
+    });
+
+    // Keep article view in sync with the store
+    $effect(() => {
+        currentArticleView = $defaultArticleView;
+    });
+
     $effect(() => {
         if (open) {
             loadSettings();
             loadStats();
             loadBackup();
+            loadTemperatureUnit();
+            loadCompactMode();
+            loadDefaultArticleView();
             tick().then(() => selectEl?.focus());
             // Reset confirmation states when modal opens
             confirmClearCache = false;
@@ -100,6 +159,69 @@
         currentTheme = $themeMode;
     });
 
+    async function handleCompactToggle() {
+        const newValue = !currentCompact;
+        currentCompact = newValue;
+        try {
+            await setCompactMode(newValue);
+            toasts.success(
+                newValue ? "Compact mode enabled" : "Compact mode disabled",
+            );
+        } catch (err) {
+            console.error("Failed to update compact mode:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update compact mode: ${msg}`);
+        }
+    }
+
+    async function handleTempUnitChange(unit: TemperatureUnit) {
+        currentTempUnit = unit;
+        try {
+            await setTemperatureUnit(unit);
+            toasts.success(
+                unit === "metric"
+                    ? "Switched to Celsius (°C)"
+                    : "Switched to Fahrenheit (°F)",
+            );
+        } catch (err) {
+            console.error("Failed to update temperature unit:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update temperature unit: ${msg}`);
+        }
+    }
+
+    async function handleArticleViewChange(mode: ArticleViewDefault) {
+        currentArticleView = mode;
+        try {
+            await setDefaultArticleView(mode);
+            const labels: Record<ArticleViewDefault, string> = {
+                reader: "Reader view",
+                original: "Original page",
+                browser: "External browser",
+            };
+            toasts.success(`Default article view set to ${labels[mode]}`);
+        } catch (err) {
+            console.error("Failed to update default article view:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update default article view: ${msg}`);
+        }
+    }
+
     async function loadSettings() {
         try {
             const stored = await dbGetSetting("refresh-interval-secs");
@@ -110,6 +232,19 @@
             }
         } catch {
             refreshInterval = DEFAULT_REFRESH;
+        }
+
+        try {
+            const storedRetention = await dbGetSetting(
+                "article-retention-hours",
+            );
+            if (storedRetention !== null) {
+                retentionHours = storedRetention;
+            } else {
+                retentionHours = DEFAULT_RETENTION;
+            }
+        } catch {
+            retentionHours = DEFAULT_RETENTION;
         }
     }
 
@@ -167,6 +302,29 @@
                       ? err
                       : JSON.stringify(err);
             toasts.error(`Failed to update refresh interval: ${msg}`);
+        }
+    }
+
+    async function handleRetentionChange(e: Event) {
+        const target = e.target as HTMLSelectElement;
+        const value = target.value;
+        retentionHours = value;
+
+        try {
+            await dbSetSetting("article-retention-hours", value);
+            const label =
+                RETENTION_OPTIONS.find((o) => o.value === value)?.label ??
+                value;
+            toasts.success(`Article retention set to ${label}`);
+        } catch (err) {
+            console.error("Failed to update article retention:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update article retention: ${msg}`);
         }
     }
 
@@ -585,6 +743,247 @@
                     </div>
                 </div>
 
+                <!-- Temperature Unit -->
+                <div class="field">
+                    <label for="temp-unit">Temperature</label>
+                    <div
+                        class="theme-toggle"
+                        role="radiogroup"
+                        aria-label="Temperature unit"
+                    >
+                        {#each TEMP_UNIT_OPTIONS as opt}
+                            <button
+                                class="theme-option"
+                                class:active={currentTempUnit === opt.value}
+                                role="radio"
+                                aria-checked={currentTempUnit === opt.value}
+                                onclick={() => handleTempUnitChange(opt.value)}
+                            >
+                                <span class="theme-icon">
+                                    {#if opt.value === "metric"}
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            aria-hidden="true"
+                                        >
+                                            <circle
+                                                cx="4.5"
+                                                cy="4"
+                                                r="1.5"
+                                                stroke="currentColor"
+                                                stroke-width="1.2"
+                                                fill="none"
+                                            />
+                                            <text
+                                                x="8"
+                                                y="12"
+                                                font-size="10"
+                                                font-weight="600"
+                                                fill="currentColor"
+                                                font-family="system-ui, sans-serif"
+                                                >C</text
+                                            >
+                                        </svg>
+                                    {:else}
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            aria-hidden="true"
+                                        >
+                                            <circle
+                                                cx="4.5"
+                                                cy="4"
+                                                r="1.5"
+                                                stroke="currentColor"
+                                                stroke-width="1.2"
+                                                fill="none"
+                                            />
+                                            <text
+                                                x="8"
+                                                y="12"
+                                                font-size="10"
+                                                font-weight="600"
+                                                fill="currentColor"
+                                                font-family="system-ui, sans-serif"
+                                                >F</text
+                                            >
+                                        </svg>
+                                    {/if}
+                                </span>
+                                {opt.label}
+                            </button>
+                        {/each}
+                    </div>
+                </div>
+
+                <!-- Compact Mode -->
+                <div class="field">
+                    <span class="field-label">Compact Mode</span>
+                    <div class="backup-toggle-row">
+                        <span class="backup-toggle-label"
+                            >Denser article list with smaller text</span
+                        >
+                        <button
+                            class="toggle-switch"
+                            class:active={currentCompact}
+                            role="switch"
+                            aria-checked={currentCompact}
+                            aria-label="Toggle compact mode"
+                            onclick={handleCompactToggle}
+                        >
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Default Article View -->
+                <div class="field">
+                    <label for="article-view">Default Article View</label>
+                    <div
+                        class="theme-toggle"
+                        role="radiogroup"
+                        aria-label="Default article view"
+                    >
+                        {#each ARTICLE_VIEW_OPTIONS as opt}
+                            <button
+                                class="theme-option"
+                                class:active={currentArticleView === opt.value}
+                                role="radio"
+                                aria-checked={currentArticleView === opt.value}
+                                onclick={() =>
+                                    handleArticleViewChange(opt.value)}
+                            >
+                                <span class="theme-icon">
+                                    {#if opt.value === "reader"}
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            aria-hidden="true"
+                                        >
+                                            <rect
+                                                x="2"
+                                                y="2"
+                                                width="12"
+                                                height="12"
+                                                rx="1.5"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                fill="none"
+                                            />
+                                            <line
+                                                x1="5"
+                                                y1="5.5"
+                                                x2="11"
+                                                y2="5.5"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                stroke-linecap="round"
+                                            />
+                                            <line
+                                                x1="5"
+                                                y1="8"
+                                                x2="11"
+                                                y2="8"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                stroke-linecap="round"
+                                            />
+                                            <line
+                                                x1="5"
+                                                y1="10.5"
+                                                x2="9"
+                                                y2="10.5"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                stroke-linecap="round"
+                                            />
+                                        </svg>
+                                    {:else if opt.value === "original"}
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            aria-hidden="true"
+                                        >
+                                            <rect
+                                                x="2"
+                                                y="2"
+                                                width="12"
+                                                height="12"
+                                                rx="1.5"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                fill="none"
+                                            />
+                                            <line
+                                                x1="2"
+                                                y1="5.5"
+                                                x2="14"
+                                                y2="5.5"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                            />
+                                            <circle
+                                                cx="4"
+                                                cy="3.8"
+                                                r="0.7"
+                                                fill="currentColor"
+                                            />
+                                            <circle
+                                                cx="6"
+                                                cy="3.8"
+                                                r="0.7"
+                                                fill="currentColor"
+                                            />
+                                        </svg>
+                                    {:else}
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                d="M6 3H4a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 4 13h8a1.5 1.5 0 0 0 1.5-1.5V9"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                stroke-linecap="round"
+                                                fill="none"
+                                            />
+                                            <path
+                                                d="M9 2.5h4.5V7"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                fill="none"
+                                            />
+                                            <line
+                                                x1="13.5"
+                                                y1="2.5"
+                                                x2="8"
+                                                y2="8"
+                                                stroke="currentColor"
+                                                stroke-width="1.3"
+                                                stroke-linecap="round"
+                                            />
+                                        </svg>
+                                    {/if}
+                                </span>
+                                {opt.label}
+                            </button>
+                        {/each}
+                    </div>
+                </div>
+
                 <!-- Refresh Interval -->
                 <div class="field">
                     <label for="refresh-interval">Refresh Interval</label>
@@ -595,6 +994,20 @@
                         onchange={handleRefreshChange}
                     >
                         {#each REFRESH_OPTIONS as opt}
+                            <option value={opt.value}>{opt.label}</option>
+                        {/each}
+                    </select>
+                </div>
+
+                <!-- Article Retention -->
+                <div class="field">
+                    <label for="article-retention">Article Retention</label>
+                    <select
+                        id="article-retention"
+                        value={retentionHours}
+                        onchange={handleRetentionChange}
+                    >
+                        {#each RETENTION_OPTIONS as opt}
                             <option value={opt.value}>{opt.label}</option>
                         {/each}
                     </select>

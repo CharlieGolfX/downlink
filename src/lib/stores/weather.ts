@@ -1,4 +1,5 @@
 import { writable } from "svelte/store";
+import { dbGetSetting, dbSetSetting } from "$lib/services/db";
 
 export interface WeatherLocation {
   name: string;
@@ -137,3 +138,34 @@ function createFavoriteLocationsStore() {
 }
 
 export const favoriteLocations = createFavoriteLocationsStore();
+
+// ── Temperature unit ────────────────────────────────────────────────
+
+export type TemperatureUnit = "metric" | "imperial";
+
+const TEMP_UNIT_KEY = "temperature-unit";
+
+export const temperatureUnit = writable<TemperatureUnit>("metric");
+
+export async function loadTemperatureUnit(): Promise<void> {
+  const stored = await dbGetSetting(TEMP_UNIT_KEY);
+  if (stored === "metric" || stored === "imperial") {
+    temperatureUnit.set(stored);
+  }
+}
+
+export async function setTemperatureUnit(unit: TemperatureUnit): Promise<void> {
+  await dbSetSetting(TEMP_UNIT_KEY, unit);
+  temperatureUnit.set(unit);
+}
+
+export function convertTemp(celsius: number, unit: TemperatureUnit): number {
+  if (unit === "imperial") {
+    return Math.round((celsius * 9) / 5 + 32);
+  }
+  return celsius;
+}
+
+export function tempUnitSymbol(unit: TemperatureUnit): string {
+  return unit === "imperial" ? "°F" : "°C";
+}

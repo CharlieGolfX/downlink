@@ -4,7 +4,10 @@
     import {
         weatherLocation,
         favoriteLocations,
+        temperatureUnit,
+        convertTemp,
         type WeatherLocation,
+        type TemperatureUnit,
     } from "$lib/stores/weather";
     import { refreshSignal, lastUpdated, markUpdated } from "$lib/stores/ui";
     import {
@@ -362,8 +365,18 @@
                             height="36"
                         />
                         <span class="temp-range">
-                            <span class="temp-high">{day.tempHigh}°</span>
-                            <span class="temp-low">{day.tempLow}°</span>
+                            <span class="temp-high"
+                                >{convertTemp(
+                                    day.tempHigh,
+                                    $temperatureUnit,
+                                )}°</span
+                            >
+                            <span class="temp-low"
+                                >{convertTemp(
+                                    day.tempLow,
+                                    $temperatureUnit,
+                                )}°</span
+                            >
                         </span>
                     </div>
                 {/each}

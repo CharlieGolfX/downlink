@@ -1,4 +1,5 @@
 import { writable } from "svelte/store";
+import { dbGetSetting, dbSetSetting } from "$lib/services/db";
 
 /**
  * Tracks whether any modal dialog is currently visible.
@@ -27,4 +28,53 @@ export function triggerRefresh() {
 
 export function markUpdated() {
   lastUpdated.set(new Date());
+}
+
+export const compactMode = writable(false);
+
+function applyCompactClass(enabled: boolean) {
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle("compact", enabled);
+  }
+}
+
+export async function loadCompactMode(): Promise<void> {
+  try {
+    const stored = await dbGetSetting("compact-mode");
+    const enabled = stored === "true";
+    compactMode.set(enabled);
+    applyCompactClass(enabled);
+  } catch {
+    // keep default
+  }
+}
+
+export async function setCompactMode(enabled: boolean): Promise<void> {
+  await dbSetSetting("compact-mode", String(enabled));
+  compactMode.set(enabled);
+  applyCompactClass(enabled);
+}
+
+// ── Default article view ─────────────────────────────────────────────
+
+export type ArticleViewDefault = "reader" | "original" | "browser";
+
+export const defaultArticleView = writable<ArticleViewDefault>("reader");
+
+export async function loadDefaultArticleView(): Promise<void> {
+  try {
+    const stored = await dbGetSetting("default-article-view");
+    if (stored === "reader" || stored === "original" || stored === "browser") {
+      defaultArticleView.set(stored);
+    }
+  } catch {
+    // keep default
+  }
+}
+
+export async function setDefaultArticleView(
+  mode: ArticleViewDefault,
+): Promise<void> {
+  await dbSetSetting("default-article-view", mode);
+  defaultArticleView.set(mode);
 }

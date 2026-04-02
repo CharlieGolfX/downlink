@@ -1,6 +1,7 @@
 <script lang="ts">
     import { untrack, onDestroy } from "svelte";
     import type { Article } from "$lib/types/feed";
+    import { compactMode } from "$lib/stores/ui";
     import ArticleCard from "./ArticleCard.svelte";
 
     interface Props {
@@ -14,7 +15,7 @@
         $props();
 
     // ── Configuration ────────────────────────────────────────────────
-    const ITEM_HEIGHT_ESTIMATE = 88;
+    let ITEM_HEIGHT_ESTIMATE = $derived($compactMode ? 52 : 88);
     const OVERSCAN = 5;
 
     // ── DOM refs & scroll state ──────────────────────────────────────
@@ -244,5 +245,11 @@
 
     :global(html.dark) .sidebar-item.active {
         background-color: rgba(91, 155, 213, 0.17);
+    }
+
+    /* ── Compact mode ──────────────────────────────────────────────── */
+
+    :global(html.compact) .sidebar-item {
+        padding: 0.35rem 0.75rem;
     }
 </style>

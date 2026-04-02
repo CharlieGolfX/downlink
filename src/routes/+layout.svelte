@@ -3,6 +3,8 @@
     import { onMount, onDestroy } from "svelte";
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
     import { initTheme, destroyTheme } from "$lib/stores/theme";
+    import { loadTemperatureUnit } from "$lib/stores/weather";
+    import { loadCompactMode, loadDefaultArticleView } from "$lib/stores/ui";
     import {
         startBackupScheduler,
         stopBackupScheduler,
@@ -31,6 +33,7 @@
         dbLoadFeeds,
         dbLoadArticles,
         dbPruneOldArticles,
+        dbGetSetting,
     } from "$lib/services/db";
 
     let { children }: { children: Snippet } = $props();
@@ -43,6 +46,7 @@
     let showImportExport = $state(false);
     let loading = $state(false);
     let refreshing = $state(false);
+    let retentionHours: number = 48;
     let dbReady = $state(false);
     let unlistenTrayRefresh: UnlistenFn | null = null;
     let unlistenOpenSettings: UnlistenFn | null = null;
@@ -50,15 +54,27 @@
     let unlistenOpenAbout: UnlistenFn | null = null;
     let unlistenOpenImportExport: UnlistenFn | null = null;
 
+    async function loadRetentionSetting() {
+        try {
+            const stored = await dbGetSetting("article-retention-hours");
+            if (stored !== null) {
+                retentionHours = Number(stored);
+            }
+        } catch {
+            // keep default
+        }
+    }
+
     /** Load persisted feeds & articles from SQLite on startup. */
     async function loadFromDb() {
         try {
             await getDb();
+            await loadRetentionSetting();
 
-            // Remove articles older than 48 hours before loading
-            const pruned = await dbPruneOldArticles();
+            // Remove old articles before loading
+            const pruned = await dbPruneOldArticles(retentionHours);
             if (pruned > 0) {
-                console.log(`Pruned ${pruned} article(s) older than 48 hours`);
+                console.log(`Pruned ${pruned} old article(s)`);
             }
 
             const [savedFeeds, savedArticles] = await Promise.all([
@@ -138,9 +154,9 @@
             const count = await refreshAllFeeds();
 
             // Prune stale articles after refresh and sync the store
-            const pruned = await dbPruneOldArticles();
+            const pruned = await dbPruneOldArticles(retentionHours);
             if (pruned > 0) {
-                console.log(`Pruned ${pruned} article(s) older than 48 hours`);
+                console.log(`Pruned ${pruned} old article(s)`);
                 // Reload articles from DB so the in-memory store matches
                 const freshArticles = await dbLoadArticles();
                 articles.set(freshArticles);
@@ -213,6 +229,9 @@
     onMount(async () => {
         await loadFromDb();
         await initTheme();
+        await loadTemperatureUnit();
+        await loadCompactMode();
+        await loadDefaultArticleView();
         await startBackupScheduler();
         await startTrayListener();
         window.addEventListener("keydown", handleKeydown);

@@ -163,4 +163,45 @@
     :global(html.dark) .timestamp {
         color: #777;
     }
+
+    /* ── Compact mode ──────────────────────────────────────────────── */
+
+    :global(html.compact) .card-body {
+        gap: 0.35rem;
+    }
+
+    :global(html.compact) .feed-logo {
+        width: 1.1rem;
+        height: 1.1rem;
+    }
+
+    :global(html.compact) .card-header {
+        margin-bottom: 0.05rem;
+    }
+
+    :global(html.compact) .feed-title {
+        font-size: 0.58rem;
+    }
+
+    :global(html.compact) .timestamp {
+        font-size: 0.58rem;
+    }
+
+    :global(html.compact) .title {
+        font-size: 0.72rem;
+        line-height: 1.25;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+        margin-bottom: 0.05rem;
+    }
+
+    :global(html.compact) .category {
+        font-size: 0.52rem;
+        padding: 0.1rem 0.25rem;
+        margin-bottom: 0.1rem;
+    }
+
+    :global(html.compact) .summary {
+        display: none;
+    }
 </style>
