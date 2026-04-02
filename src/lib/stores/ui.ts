@@ -78,3 +78,23 @@ export async function setDefaultArticleView(
   await dbSetSetting("default-article-view", mode);
   defaultArticleView.set(mode);
 }
+
+// ── Close to tray ────────────────────────────────────────────────────
+
+export const closeToTray = writable(true);
+
+export async function loadCloseToTray(): Promise<void> {
+  try {
+    const stored = await dbGetSetting("close-to-tray");
+    if (stored !== null) {
+      closeToTray.set(stored === "true");
+    }
+  } catch {
+    // keep default (true)
+  }
+}
+
+export async function setCloseToTray(enabled: boolean): Promise<void> {
+  await dbSetSetting("close-to-tray", String(enabled));
+  closeToTray.set(enabled);
+}

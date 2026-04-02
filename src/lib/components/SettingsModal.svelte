@@ -8,6 +8,9 @@
         loadDefaultArticleView,
         setDefaultArticleView,
         type ArticleViewDefault,
+        closeToTray,
+        loadCloseToTray,
+        setCloseToTray,
     } from "$lib/stores/ui";
     import {
         dbGetSetting,
@@ -103,6 +106,7 @@
     let retentionHours = $state(DEFAULT_RETENTION);
     let currentCompact = $state(false);
     let currentArticleView = $state<ArticleViewDefault>("reader");
+    let currentCloseToTray = $state(true);
     let selectEl: HTMLSelectElement | undefined = $state();
 
     // DB stats
@@ -139,6 +143,11 @@
         currentArticleView = $defaultArticleView;
     });
 
+    // Keep close-to-tray in sync with the store
+    $effect(() => {
+        currentCloseToTray = $closeToTray;
+    });
+
     $effect(() => {
         if (open) {
             loadSettings();
@@ -147,6 +156,7 @@
             loadTemperatureUnit();
             loadCompactMode();
             loadDefaultArticleView();
+            loadCloseToTray();
             tick().then(() => selectEl?.focus());
             // Reset confirmation states when modal opens
             confirmClearCache = false;
@@ -158,6 +168,30 @@
     $effect(() => {
         currentTheme = $themeMode;
     });
+
+    async function handleCloseToTrayToggle() {
+        const newValue = !currentCloseToTray;
+        currentCloseToTray = newValue;
+        try {
+            await setCloseToTray(newValue);
+            // Sync to Rust backend immediately
+            await invoke("set_close_to_tray", { enabled: newValue });
+            toasts.success(
+                newValue
+                    ? "App will minimize to tray on close"
+                    : "App will quit on close",
+            );
+        } catch (err) {
+            console.error("Failed to update close-to-tray:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update close-to-tray: ${msg}`);
+        }
+    }
 
     async function handleCompactToggle() {
         const newValue = !currentCompact;
@@ -834,6 +868,26 @@
                             aria-checked={currentCompact}
                             aria-label="Toggle compact mode"
                             onclick={handleCompactToggle}
+                        >
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Close to Tray -->
+                <div class="field">
+                    <span class="field-label">Close to Tray</span>
+                    <div class="backup-toggle-row">
+                        <span class="backup-toggle-label"
+                            >Minimize to system tray instead of quitting</span
+                        >
+                        <button
+                            class="toggle-switch"
+                            class:active={currentCloseToTray}
+                            role="switch"
+                            aria-checked={currentCloseToTray}
+                            aria-label="Toggle close to tray"
+                            onclick={handleCloseToTrayToggle}
                         >
                             <span class="toggle-knob"></span>
                         </button>

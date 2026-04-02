@@ -2,9 +2,15 @@
     import type { Snippet } from "svelte";
     import { onMount, onDestroy } from "svelte";
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+    import { invoke } from "@tauri-apps/api/core";
     import { initTheme, destroyTheme } from "$lib/stores/theme";
     import { loadTemperatureUnit } from "$lib/stores/weather";
-    import { loadCompactMode, loadDefaultArticleView } from "$lib/stores/ui";
+    import {
+        loadCompactMode,
+        loadDefaultArticleView,
+        loadCloseToTray,
+        closeToTray,
+    } from "$lib/stores/ui";
     import {
         startBackupScheduler,
         stopBackupScheduler,
@@ -25,6 +31,7 @@
         activeTag,
         upsertFeed,
         addFeedArticles,
+        globalUnreadCount,
     } from "$lib/stores/feeds";
     import { AVAILABLE_TAGS } from "$lib/tags";
     import type { Article } from "$lib/types/feed";
@@ -232,6 +239,22 @@
         await loadTemperatureUnit();
         await loadCompactMode();
         await loadDefaultArticleView();
+        await loadCloseToTray();
+
+        // Sync close-to-tray setting to Rust backend
+        closeToTray.subscribe((enabled) => {
+            invoke("set_close_to_tray", { enabled }).catch((e) =>
+                console.error("Failed to sync close-to-tray:", e),
+            );
+        });
+
+        // Keep tray badge in sync with unread count
+        globalUnreadCount.subscribe((count) => {
+            invoke("update_tray_badge", { count }).catch((e) =>
+                console.error("Failed to update tray badge:", e),
+            );
+        });
+
         await startBackupScheduler();
         await startTrayListener();
         window.addEventListener("keydown", handleKeydown);

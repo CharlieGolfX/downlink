@@ -554,6 +554,7 @@ async fn eval_original(app: tauri::AppHandle, js: String) -> Result<(), String> 
 
 /// Background refresh interval — matches the frontend's POLL_INTERVAL_MS.
 static REFRESH_INTERVAL_SECS: AtomicU64 = AtomicU64::new(60 * 60); // default 1 hour
+static CLOSE_TO_TRAY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
 #[tauri::command]
 fn set_refresh_interval(secs: u64) -> Result<(), String> {
@@ -561,6 +562,37 @@ fn set_refresh_interval(secs: u64) -> Result<(), String> {
         return Err("Refresh interval must be at least 60 seconds".into());
     }
     REFRESH_INTERVAL_SECS.store(secs, Ordering::Relaxed);
+    Ok(())
+}
+
+#[tauri::command]
+fn set_close_to_tray(enabled: bool) {
+    CLOSE_TO_TRAY.store(enabled, Ordering::Relaxed);
+}
+
+#[tauri::command]
+fn update_tray_badge(app: tauri::AppHandle, count: u32) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let tooltip = if count > 0 {
+            format!("Downlink \u{2014} {} unread", count)
+        } else {
+            "Downlink".to_string()
+        };
+        tray.set_tooltip(Some(&tooltip))
+            .map_err(|e| e.to_string())?;
+
+        // On macOS, show the count as text next to the tray icon
+        #[cfg(target_os = "macos")]
+        {
+            let title = if count > 0 {
+                Some(count.to_string())
+            } else {
+                None
+            };
+            tray.set_title(title.as_deref())
+                .map_err(|e| e.to_string())?;
+        }
+    }
     Ok(())
 }
 
@@ -682,7 +714,7 @@ pub fn run() {
             let icon = Image::from_bytes(include_bytes!("../icons/icon.png"))
                 .expect("failed to load tray icon");
 
-            let _tray = TrayIconBuilder::new()
+            let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(icon)
                 .icon_as_template(true)
                 .menu(&menu)
@@ -709,9 +741,11 @@ pub fn run() {
                 let app_handle = app.handle().clone();
                 win.on_window_event(move |event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        if let Some(w) = app_handle.get_webview_window("main") {
-                            let _ = w.hide();
+                        if CLOSE_TO_TRAY.load(Ordering::Relaxed) {
+                            api.prevent_close();
+                            if let Some(w) = app_handle.get_webview_window("main") {
+                                let _ = w.hide();
+                            }
                         }
                     }
                 });
@@ -748,6 +782,8 @@ pub fn run() {
             resize_reader,
             eval_reader,
             set_refresh_interval,
+            set_close_to_tray,
+            update_tray_badge,
             read_text_file,
             write_text_file
         ])

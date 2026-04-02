@@ -197,6 +197,15 @@ export const totalUnreadCount = derived(
 );
 
 /**
+ * Global unread article count across ALL feeds, regardless of tag filter.
+ * Used for the system tray badge.
+ */
+export const globalUnreadCount = derived(
+  articles,
+  ($articles) => $articles.filter((a) => !a.read).length,
+);
+
+/**
  * Merges new articles into the store, deduplicating by `id`,
  * so the same feed can be refreshed without creating duplicates.
  * Persists every upserted article to the SQLite database.
