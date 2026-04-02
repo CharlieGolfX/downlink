@@ -3,6 +3,7 @@
     import { onMount, onDestroy } from "svelte";
     import { listen, type UnlistenFn } from "@tauri-apps/api/event";
     import { invoke } from "@tauri-apps/api/core";
+    import { getCurrentWindow } from "@tauri-apps/api/window";
     import { initTheme, destroyTheme } from "$lib/stores/theme";
     import { loadTemperatureUnit } from "$lib/stores/weather";
     import {
@@ -41,6 +42,7 @@
         dbLoadArticles,
         dbPruneOldArticles,
         dbGetSetting,
+        dbSetSetting,
     } from "$lib/services/db";
 
     let { children }: { children: Snippet } = $props();
@@ -220,6 +222,66 @@
         }
     }
 
+    // ── Window geometry save/restore ────────────────────────────────────
+    let saveGeometryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    async function saveWindowGeometry() {
+        try {
+            const win = getCurrentWindow();
+            const pos = await win.outerPosition();
+            const size = await win.outerSize();
+            await Promise.all([
+                dbSetSetting("window-x", String(pos.x)),
+                dbSetSetting("window-y", String(pos.y)),
+                dbSetSetting("window-width", String(size.width)),
+                dbSetSetting("window-height", String(size.height)),
+            ]);
+        } catch (e) {
+            console.error("Failed to save window geometry:", e);
+        }
+    }
+
+    function debouncedSaveGeometry() {
+        if (saveGeometryTimer) clearTimeout(saveGeometryTimer);
+        saveGeometryTimer = setTimeout(saveWindowGeometry, 500);
+    }
+
+    async function restoreWindowGeometry() {
+        try {
+            const [xRaw, yRaw, wRaw, hRaw] = await Promise.all([
+                dbGetSetting("window-x"),
+                dbGetSetting("window-y"),
+                dbGetSetting("window-width"),
+                dbGetSetting("window-height"),
+            ]);
+            if (
+                xRaw === null ||
+                yRaw === null ||
+                wRaw === null ||
+                hRaw === null
+            )
+                return;
+
+            const x = Number(xRaw);
+            const y = Number(yRaw);
+            const w = Number(wRaw);
+            const h = Number(hRaw);
+
+            if (isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) return;
+            if (w < 400 || h < 300) return; // sanity check
+
+            const win = getCurrentWindow();
+            const { PhysicalPosition, PhysicalSize } =
+                await import("@tauri-apps/api/dpi");
+            await win.setPosition(new PhysicalPosition(x, y));
+            await win.setSize(new PhysicalSize(w, h));
+        } catch (e) {
+            console.error("Failed to restore window geometry:", e);
+        }
+    }
+
+    let windowUnlisteners: (() => void)[] = [];
+
     function handleKeydown(e: KeyboardEvent) {
         // Cmd+N (mac) or Ctrl+N (windows/linux) → open Add Feed modal
         if (
@@ -259,8 +321,43 @@
         await startTrayListener();
         window.addEventListener("keydown", handleKeydown);
 
-        // Refresh all feeds on startup
-        handleRefresh();
+        // ── Startup behavior settings ───────────────────────────
+        const [startMinimizedRaw, restoreWindowRaw, autoRefreshRaw] =
+            await Promise.all([
+                dbGetSetting("start-minimized"),
+                dbGetSetting("restore-window"),
+                dbGetSetting("auto-refresh-on-launch"),
+            ]);
+
+        const shouldRestoreWindow = restoreWindowRaw !== "false"; // default true
+        const shouldStartMinimized = startMinimizedRaw === "true"; // default false
+        const shouldAutoRefresh = autoRefreshRaw !== "false"; // default true
+
+        // Restore window geometry if enabled
+        if (shouldRestoreWindow) {
+            await restoreWindowGeometry();
+        }
+
+        // Start minimized — hide to tray
+        if (shouldStartMinimized) {
+            const win = getCurrentWindow();
+            await win.hide();
+        }
+
+        // Listen for move/resize to persist window geometry
+        const win = getCurrentWindow();
+        const unlistenMoved = await win.onMoved(() => debouncedSaveGeometry());
+        const unlistenResized = await win.onResized(() =>
+            debouncedSaveGeometry(),
+        );
+
+        // Store unlisten functions for cleanup
+        windowUnlisteners = [unlistenMoved, unlistenResized];
+
+        // Auto-refresh on launch (conditional)
+        if (shouldAutoRefresh) {
+            handleRefresh();
+        }
     });
 
     onDestroy(() => {
@@ -268,6 +365,10 @@
         stopBackupScheduler();
         destroyTheme();
         window.removeEventListener("keydown", handleKeydown);
+        for (const unlisten of windowUnlisteners) {
+            unlisten();
+        }
+        if (saveGeometryTimer) clearTimeout(saveGeometryTimer);
     });
 </script>
 

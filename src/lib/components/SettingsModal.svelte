@@ -109,6 +109,11 @@
     let currentCloseToTray = $state(true);
     let selectEl: HTMLSelectElement | undefined = $state();
 
+    // Startup behavior
+    let startMinimized = $state(false);
+    let restoreWindow = $state(true);
+    let autoRefreshOnLaunch = $state(true);
+
     // DB stats
     let dbStats = $state<DbStats | null>(null);
     let loadingStats = $state(false);
@@ -256,6 +261,72 @@
         }
     }
 
+    async function handleStartMinimizedToggle() {
+        startMinimized = !startMinimized;
+        try {
+            await dbSetSetting("start-minimized", String(startMinimized));
+            toasts.success(
+                startMinimized
+                    ? "App will start minimized to tray"
+                    : "App will start with window visible",
+            );
+        } catch (err) {
+            console.error("Failed to update start minimized:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update setting: ${msg}`);
+        }
+    }
+
+    async function handleRestoreWindowToggle() {
+        restoreWindow = !restoreWindow;
+        try {
+            await dbSetSetting("restore-window", String(restoreWindow));
+            toasts.success(
+                restoreWindow
+                    ? "Window position will be restored on launch"
+                    : "Window will use default position on launch",
+            );
+        } catch (err) {
+            console.error("Failed to update restore window:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update setting: ${msg}`);
+        }
+    }
+
+    async function handleAutoRefreshToggle() {
+        autoRefreshOnLaunch = !autoRefreshOnLaunch;
+        try {
+            await dbSetSetting(
+                "auto-refresh-on-launch",
+                String(autoRefreshOnLaunch),
+            );
+            toasts.success(
+                autoRefreshOnLaunch
+                    ? "Feeds will auto-refresh on launch"
+                    : "Feeds will not auto-refresh on launch",
+            );
+        } catch (err) {
+            console.error("Failed to update auto-refresh:", err);
+            const msg =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : JSON.stringify(err);
+            toasts.error(`Failed to update setting: ${msg}`);
+        }
+    }
+
     async function loadSettings() {
         try {
             const stored = await dbGetSetting("refresh-interval-secs");
@@ -279,6 +350,22 @@
             }
         } catch {
             retentionHours = DEFAULT_RETENTION;
+        }
+
+        // Load startup settings
+        try {
+            const [smRaw, rwRaw, arRaw] = await Promise.all([
+                dbGetSetting("start-minimized"),
+                dbGetSetting("restore-window"),
+                dbGetSetting("auto-refresh-on-launch"),
+            ]);
+            startMinimized = smRaw === "true";
+            restoreWindow = rwRaw !== "false"; // default true
+            autoRefreshOnLaunch = arRaw !== "false"; // default true
+        } catch {
+            startMinimized = false;
+            restoreWindow = true;
+            autoRefreshOnLaunch = true;
         }
     }
 
@@ -1065,6 +1152,61 @@
                             <option value={opt.value}>{opt.label}</option>
                         {/each}
                     </select>
+                </div>
+
+                <hr class="divider" />
+
+                <!-- Startup Behavior -->
+                <div class="field">
+                    <span class="field-label">Startup</span>
+
+                    <div class="backup-toggle-row">
+                        <span class="backup-toggle-label"
+                            >Start minimized to tray</span
+                        >
+                        <button
+                            class="toggle-switch"
+                            class:active={startMinimized}
+                            role="switch"
+                            aria-checked={startMinimized}
+                            aria-label="Toggle start minimized"
+                            onclick={handleStartMinimizedToggle}
+                        >
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </div>
+
+                    <div class="backup-toggle-row">
+                        <span class="backup-toggle-label"
+                            >Restore last window size and position</span
+                        >
+                        <button
+                            class="toggle-switch"
+                            class:active={restoreWindow}
+                            role="switch"
+                            aria-checked={restoreWindow}
+                            aria-label="Toggle restore window position"
+                            onclick={handleRestoreWindowToggle}
+                        >
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </div>
+
+                    <div class="backup-toggle-row">
+                        <span class="backup-toggle-label"
+                            >Auto-refresh feeds on launch</span
+                        >
+                        <button
+                            class="toggle-switch"
+                            class:active={autoRefreshOnLaunch}
+                            role="switch"
+                            aria-checked={autoRefreshOnLaunch}
+                            aria-label="Toggle auto-refresh on launch"
+                            onclick={handleAutoRefreshToggle}
+                        >
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </div>
                 </div>
 
                 <hr class="divider" />
