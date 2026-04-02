@@ -95,7 +95,7 @@ Downlink lets you subscribe to RSS and Atom feeds, read articles in a clean read
 | `S` | Next article |
 | `↑` / `↓` | Scroll article content |
 | `Q` / `Escape` | Close article / close modal |
-| `⌘N` / `Ctrl+N` | Add new feed |
+| `⌘+N` / `Ctrl+N` | Add new feed |
 
 ### Performance
 
