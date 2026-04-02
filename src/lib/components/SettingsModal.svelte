@@ -109,6 +109,19 @@
     let currentCloseToTray = $state(true);
     let selectEl: HTMLSelectElement | undefined = $state();
 
+    // Collapsible section state
+    let openSections = $state<Record<string, boolean>>({
+        appearance: true,
+        articles: true,
+        window: false,
+        backup: false,
+        storage: false,
+    });
+
+    function toggleSection(key: string) {
+        openSections = { ...openSections, [key]: !openSections[key] };
+    }
+
     // Startup behavior
     let startMinimized = $state(false);
     let restoreWindow = $state(true);
@@ -706,726 +719,1071 @@
             </header>
 
             <div class="body">
-                <!-- Appearance -->
-                <div class="field">
-                    <label for="theme-mode">Appearance</label>
-                    <div
-                        class="theme-toggle"
-                        role="radiogroup"
-                        aria-label="Theme mode"
-                    >
-                        {#each THEME_OPTIONS as opt}
-                            <button
-                                class="theme-option"
-                                class:active={currentTheme === opt.value}
-                                role="radio"
-                                aria-checked={currentTheme === opt.value}
-                                onclick={() => handleThemeChange(opt.value)}
+                <!-- ═══════════════════════════════════════════ -->
+                <!-- SECTION: Appearance                        -->
+                <!-- ═══════════════════════════════════════════ -->
+                <button
+                    class="section-header"
+                    class:open={openSections.appearance}
+                    onclick={() => toggleSection("appearance")}
+                    aria-expanded={openSections.appearance}
+                >
+                    <span class="section-icon">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M8 1.5C4.4 1.5 1.5 4.4 1.5 8C1.5 11.6 4.4 14.5 8 14.5C8.7 14.5 9.2 13.9 9.2 13.3C9.2 13 9.1 12.8 8.9 12.6C8.7 12.4 8.5 12.1 8.5 11.8C8.5 11.1 9.1 10.5 9.8 10.5H11C13 10.5 14.5 9.2 14.5 7.3C14.5 4 11.5 1.5 8 1.5Z"
+                            />
+                            <circle
+                                cx="5"
+                                cy="6"
+                                r="0.9"
+                                fill="currentColor"
+                                stroke="none"
+                            />
+                            <circle
+                                cx="8"
+                                cy="4.2"
+                                r="0.9"
+                                fill="currentColor"
+                                stroke="none"
+                            />
+                            <circle
+                                cx="10.8"
+                                cy="6.2"
+                                r="0.9"
+                                fill="currentColor"
+                                stroke="none"
+                            />
+                            <circle
+                                cx="5"
+                                cy="9"
+                                r="0.9"
+                                fill="currentColor"
+                                stroke="none"
+                            />
+                        </svg>
+                    </span>
+                    <span class="section-title">Appearance</span>
+                    <span class="section-chevron">
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M3 4.5L6 7.5L9 4.5"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </span>
+                </button>
+
+                {#if openSections.appearance}
+                    <div class="section-body">
+                        <!-- Theme -->
+                        <div class="field">
+                            <label for="theme-mode">Theme</label>
+                            <div
+                                class="theme-toggle"
+                                role="radiogroup"
+                                aria-label="Theme mode"
                             >
-                                <span class="theme-icon">
-                                    {#if opt.value === "system"}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <rect
-                                                x="2"
-                                                y="3"
-                                                width="12"
-                                                height="8"
-                                                rx="1"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                fill="none"
-                                            />
-                                            <line
-                                                x1="5"
-                                                y1="13"
-                                                x2="11"
-                                                y2="13"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                        </svg>
-                                    {:else if opt.value === "light"}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <circle
-                                                cx="8"
-                                                cy="8"
-                                                r="3"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                fill="none"
-                                            />
-                                            <line
-                                                x1="8"
-                                                y1="1.5"
-                                                x2="8"
-                                                y2="3"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="8"
-                                                y1="13"
-                                                x2="8"
-                                                y2="14.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="1.5"
-                                                y1="8"
-                                                x2="3"
-                                                y2="8"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="13"
-                                                y1="8"
-                                                x2="14.5"
-                                                y2="8"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="3.4"
-                                                y1="3.4"
-                                                x2="4.5"
-                                                y2="4.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="11.5"
-                                                y1="11.5"
-                                                x2="12.6"
-                                                y2="12.6"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="3.4"
-                                                y1="12.6"
-                                                x2="4.5"
-                                                y2="11.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="11.5"
-                                                y1="4.5"
-                                                x2="12.6"
-                                                y2="3.4"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                        </svg>
-                                    {:else}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                d="M13.5 9.5a5.5 5.5 0 0 1-7-7 5.5 5.5 0 1 0 7 7Z"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linejoin="round"
-                                                fill="none"
-                                            />
-                                        </svg>
-                                    {/if}
-                                </span>
-                                {opt.label}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                <!-- Temperature Unit -->
-                <div class="field">
-                    <label for="temp-unit">Temperature</label>
-                    <div
-                        class="theme-toggle"
-                        role="radiogroup"
-                        aria-label="Temperature unit"
-                    >
-                        {#each TEMP_UNIT_OPTIONS as opt}
-                            <button
-                                class="theme-option"
-                                class:active={currentTempUnit === opt.value}
-                                role="radio"
-                                aria-checked={currentTempUnit === opt.value}
-                                onclick={() => handleTempUnitChange(opt.value)}
-                            >
-                                <span class="theme-icon">
-                                    {#if opt.value === "metric"}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <circle
-                                                cx="4.5"
-                                                cy="4"
-                                                r="1.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.2"
-                                                fill="none"
-                                            />
-                                            <text
-                                                x="8"
-                                                y="12"
-                                                font-size="10"
-                                                font-weight="600"
-                                                fill="currentColor"
-                                                font-family="system-ui, sans-serif"
-                                                >C</text
-                                            >
-                                        </svg>
-                                    {:else}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <circle
-                                                cx="4.5"
-                                                cy="4"
-                                                r="1.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.2"
-                                                fill="none"
-                                            />
-                                            <text
-                                                x="8"
-                                                y="12"
-                                                font-size="10"
-                                                font-weight="600"
-                                                fill="currentColor"
-                                                font-family="system-ui, sans-serif"
-                                                >F</text
-                                            >
-                                        </svg>
-                                    {/if}
-                                </span>
-                                {opt.label}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                <!-- Compact Mode -->
-                <div class="field">
-                    <span class="field-label">Compact Mode</span>
-                    <div class="backup-toggle-row">
-                        <span class="backup-toggle-label"
-                            >Denser article list with smaller text</span
-                        >
-                        <button
-                            class="toggle-switch"
-                            class:active={currentCompact}
-                            role="switch"
-                            aria-checked={currentCompact}
-                            aria-label="Toggle compact mode"
-                            onclick={handleCompactToggle}
-                        >
-                            <span class="toggle-knob"></span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Close to Tray -->
-                <div class="field">
-                    <span class="field-label">Close to Tray</span>
-                    <div class="backup-toggle-row">
-                        <span class="backup-toggle-label"
-                            >Minimize to system tray instead of quitting</span
-                        >
-                        <button
-                            class="toggle-switch"
-                            class:active={currentCloseToTray}
-                            role="switch"
-                            aria-checked={currentCloseToTray}
-                            aria-label="Toggle close to tray"
-                            onclick={handleCloseToTrayToggle}
-                        >
-                            <span class="toggle-knob"></span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Default Article View -->
-                <div class="field">
-                    <label for="article-view">Default Article View</label>
-                    <div
-                        class="theme-toggle"
-                        role="radiogroup"
-                        aria-label="Default article view"
-                    >
-                        {#each ARTICLE_VIEW_OPTIONS as opt}
-                            <button
-                                class="theme-option"
-                                class:active={currentArticleView === opt.value}
-                                role="radio"
-                                aria-checked={currentArticleView === opt.value}
-                                onclick={() =>
-                                    handleArticleViewChange(opt.value)}
-                            >
-                                <span class="theme-icon">
-                                    {#if opt.value === "reader"}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <rect
-                                                x="2"
-                                                y="2"
-                                                width="12"
-                                                height="12"
-                                                rx="1.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                fill="none"
-                                            />
-                                            <line
-                                                x1="5"
-                                                y1="5.5"
-                                                x2="11"
-                                                y2="5.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="5"
-                                                y1="8"
-                                                x2="11"
-                                                y2="8"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                            <line
-                                                x1="5"
-                                                y1="10.5"
-                                                x2="9"
-                                                y2="10.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                        </svg>
-                                    {:else if opt.value === "original"}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <rect
-                                                x="2"
-                                                y="2"
-                                                width="12"
-                                                height="12"
-                                                rx="1.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                fill="none"
-                                            />
-                                            <line
-                                                x1="2"
-                                                y1="5.5"
-                                                x2="14"
-                                                y2="5.5"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                            />
-                                            <circle
-                                                cx="4"
-                                                cy="3.8"
-                                                r="0.7"
-                                                fill="currentColor"
-                                            />
-                                            <circle
-                                                cx="6"
-                                                cy="3.8"
-                                                r="0.7"
-                                                fill="currentColor"
-                                            />
-                                        </svg>
-                                    {:else}
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                d="M6 3H4a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 4 13h8a1.5 1.5 0 0 0 1.5-1.5V9"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                                fill="none"
-                                            />
-                                            <path
-                                                d="M9 2.5h4.5V7"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                fill="none"
-                                            />
-                                            <line
-                                                x1="13.5"
-                                                y1="2.5"
-                                                x2="8"
-                                                y2="8"
-                                                stroke="currentColor"
-                                                stroke-width="1.3"
-                                                stroke-linecap="round"
-                                            />
-                                        </svg>
-                                    {/if}
-                                </span>
-                                {opt.label}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                <!-- Refresh Interval -->
-                <div class="field">
-                    <label for="refresh-interval">Refresh Interval</label>
-                    <select
-                        bind:this={selectEl}
-                        id="refresh-interval"
-                        value={refreshInterval}
-                        onchange={handleRefreshChange}
-                    >
-                        {#each REFRESH_OPTIONS as opt}
-                            <option value={opt.value}>{opt.label}</option>
-                        {/each}
-                    </select>
-                </div>
-
-                <!-- Article Retention -->
-                <div class="field">
-                    <label for="article-retention">Article Retention</label>
-                    <select
-                        id="article-retention"
-                        value={retentionHours}
-                        onchange={handleRetentionChange}
-                    >
-                        {#each RETENTION_OPTIONS as opt}
-                            <option value={opt.value}>{opt.label}</option>
-                        {/each}
-                    </select>
-                </div>
-
-                <hr class="divider" />
-
-                <!-- Startup Behavior -->
-                <div class="field">
-                    <span class="field-label">Startup</span>
-
-                    <div class="backup-toggle-row">
-                        <span class="backup-toggle-label"
-                            >Start minimized to tray</span
-                        >
-                        <button
-                            class="toggle-switch"
-                            class:active={startMinimized}
-                            role="switch"
-                            aria-checked={startMinimized}
-                            aria-label="Toggle start minimized"
-                            onclick={handleStartMinimizedToggle}
-                        >
-                            <span class="toggle-knob"></span>
-                        </button>
-                    </div>
-
-                    <div class="backup-toggle-row">
-                        <span class="backup-toggle-label"
-                            >Restore last window size and position</span
-                        >
-                        <button
-                            class="toggle-switch"
-                            class:active={restoreWindow}
-                            role="switch"
-                            aria-checked={restoreWindow}
-                            aria-label="Toggle restore window position"
-                            onclick={handleRestoreWindowToggle}
-                        >
-                            <span class="toggle-knob"></span>
-                        </button>
-                    </div>
-
-                    <div class="backup-toggle-row">
-                        <span class="backup-toggle-label"
-                            >Auto-refresh feeds on launch</span
-                        >
-                        <button
-                            class="toggle-switch"
-                            class:active={autoRefreshOnLaunch}
-                            role="switch"
-                            aria-checked={autoRefreshOnLaunch}
-                            aria-label="Toggle auto-refresh on launch"
-                            onclick={handleAutoRefreshToggle}
-                        >
-                            <span class="toggle-knob"></span>
-                        </button>
-                    </div>
-                </div>
-
-                <hr class="divider" />
-
-                <!-- Automatic Backup -->
-                <div class="field">
-                    <span class="field-label">Automatic Backup</span>
-                    <p class="field-description">
-                        Automatically export your feeds as OPML to a local
-                        directory on a schedule.
-                    </p>
-
-                    <div class="backup-toggle-row">
-                        <span class="backup-toggle-label"
-                            >Enable automatic backup</span
-                        >
-                        <button
-                            class="toggle-switch"
-                            class:active={backupEnabled}
-                            role="switch"
-                            aria-checked={backupEnabled}
-                            aria-label="Enable automatic backup"
-                            onclick={handleBackupToggle}
-                        >
-                            <span class="toggle-knob"></span>
-                        </button>
-                    </div>
-
-                    {#if backupEnabled}
-                        <div class="backup-fields">
-                            <div class="backup-field">
-                                <span class="backup-field-label">Frequency</span
-                                >
-                                <select
-                                    class="backup-frequency-select"
-                                    value={backupFrequency}
-                                    onchange={handleBackupFrequencyChange}
-                                >
-                                    <option value="daily">Daily</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="monthly">Monthly</option>
-                                </select>
-                            </div>
-
-                            <div class="backup-field">
-                                <span class="backup-field-label">Directory</span
-                                >
-                                <div class="backup-path-row">
+                                {#each THEME_OPTIONS as opt}
                                     <button
-                                        class="btn btn-outline backup-browse-btn"
-                                        onclick={handlePickDirectory}
+                                        class="theme-option"
+                                        class:active={currentTheme ===
+                                            opt.value}
+                                        role="radio"
+                                        aria-checked={currentTheme ===
+                                            opt.value}
+                                        onclick={() =>
+                                            handleThemeChange(opt.value)}
                                     >
-                                        {backupDirectory
-                                            ? "Change…"
-                                            : "Choose folder…"}
-                                    </button>
-                                    {#if backupDirectory}
-                                        <span
-                                            class="backup-path"
-                                            title={backupDirectory}
-                                        >
-                                            {backupDirectory}
+                                        <span class="theme-icon">
+                                            {#if opt.value === "system"}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <rect
+                                                        x="2"
+                                                        y="3"
+                                                        width="12"
+                                                        height="8"
+                                                        rx="1"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        fill="none"
+                                                    />
+                                                    <line
+                                                        x1="5"
+                                                        y1="13"
+                                                        x2="11"
+                                                        y2="13"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                </svg>
+                                            {:else if opt.value === "light"}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <circle
+                                                        cx="8"
+                                                        cy="8"
+                                                        r="3"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        fill="none"
+                                                    />
+                                                    <line
+                                                        x1="8"
+                                                        y1="1.5"
+                                                        x2="8"
+                                                        y2="3"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="8"
+                                                        y1="13"
+                                                        x2="8"
+                                                        y2="14.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="1.5"
+                                                        y1="8"
+                                                        x2="3"
+                                                        y2="8"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="13"
+                                                        y1="8"
+                                                        x2="14.5"
+                                                        y2="8"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="3.4"
+                                                        y1="3.4"
+                                                        x2="4.5"
+                                                        y2="4.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="11.5"
+                                                        y1="11.5"
+                                                        x2="12.6"
+                                                        y2="12.6"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="3.4"
+                                                        y1="12.6"
+                                                        x2="4.5"
+                                                        y2="11.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="11.5"
+                                                        y1="4.5"
+                                                        x2="12.6"
+                                                        y2="3.4"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                </svg>
+                                            {:else}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <path
+                                                        d="M13.5 9.5a5.5 5.5 0 0 1-7-7 5.5 5.5 0 1 0 7 7Z"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linejoin="round"
+                                                        fill="none"
+                                                    />
+                                                </svg>
+                                            {/if}
                                         </span>
-                                    {:else}
-                                        <span class="backup-path muted"
-                                            >No directory selected</span
+                                        {opt.label}
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+
+                        <!-- Temperature Unit -->
+                        <div class="field">
+                            <label for="temp-unit">Temperature</label>
+                            <div
+                                class="theme-toggle"
+                                role="radiogroup"
+                                aria-label="Temperature unit"
+                            >
+                                {#each TEMP_UNIT_OPTIONS as opt}
+                                    <button
+                                        class="theme-option"
+                                        class:active={currentTempUnit ===
+                                            opt.value}
+                                        role="radio"
+                                        aria-checked={currentTempUnit ===
+                                            opt.value}
+                                        onclick={() =>
+                                            handleTempUnitChange(opt.value)}
+                                    >
+                                        <span class="theme-icon">
+                                            {#if opt.value === "metric"}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <circle
+                                                        cx="4.5"
+                                                        cy="4"
+                                                        r="1.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.2"
+                                                        fill="none"
+                                                    />
+                                                    <text
+                                                        x="8"
+                                                        y="12"
+                                                        font-size="10"
+                                                        font-weight="600"
+                                                        fill="currentColor"
+                                                        font-family="system-ui, sans-serif"
+                                                        >C</text
+                                                    >
+                                                </svg>
+                                            {:else}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <circle
+                                                        cx="4.5"
+                                                        cy="4"
+                                                        r="1.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.2"
+                                                        fill="none"
+                                                    />
+                                                    <text
+                                                        x="8"
+                                                        y="12"
+                                                        font-size="10"
+                                                        font-weight="600"
+                                                        fill="currentColor"
+                                                        font-family="system-ui, sans-serif"
+                                                        >F</text
+                                                    >
+                                                </svg>
+                                            {/if}
+                                        </span>
+                                        {opt.label}
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+
+                        <!-- Compact Mode -->
+                        <div class="field">
+                            <span class="field-label">Compact Mode</span>
+                            <div class="toggle-row">
+                                <span class="toggle-label"
+                                    >Denser article list with smaller text</span
+                                >
+                                <button
+                                    class="toggle-switch"
+                                    class:active={currentCompact}
+                                    role="switch"
+                                    aria-checked={currentCompact}
+                                    aria-label="Toggle compact mode"
+                                    onclick={handleCompactToggle}
+                                >
+                                    <span class="toggle-knob"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- ═══════════════════════════════════════════ -->
+                <!-- SECTION: Articles                          -->
+                <!-- ═══════════════════════════════════════════ -->
+                <button
+                    class="section-header"
+                    class:open={openSections.articles}
+                    onclick={() => toggleSection("articles")}
+                    aria-expanded={openSections.articles}
+                >
+                    <span class="section-icon">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <rect
+                                x="3"
+                                y="1.5"
+                                width="10"
+                                height="13"
+                                rx="1.5"
+                            />
+                            <line x1="5.5" y1="5" x2="10.5" y2="5" />
+                            <line x1="5.5" y1="7.5" x2="10.5" y2="7.5" />
+                            <line x1="5.5" y1="10" x2="8.5" y2="10" />
+                        </svg>
+                    </span>
+                    <span class="section-title">Articles</span>
+                    <span class="section-chevron">
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M3 4.5L6 7.5L9 4.5"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </span>
+                </button>
+
+                {#if openSections.articles}
+                    <div class="section-body">
+                        <!-- Default Article View -->
+                        <div class="field">
+                            <label for="article-view">Default View</label>
+                            <div
+                                class="theme-toggle"
+                                role="radiogroup"
+                                aria-label="Default article view"
+                            >
+                                {#each ARTICLE_VIEW_OPTIONS as opt}
+                                    <button
+                                        class="theme-option"
+                                        class:active={currentArticleView ===
+                                            opt.value}
+                                        role="radio"
+                                        aria-checked={currentArticleView ===
+                                            opt.value}
+                                        onclick={() =>
+                                            handleArticleViewChange(opt.value)}
+                                    >
+                                        <span class="theme-icon">
+                                            {#if opt.value === "reader"}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <rect
+                                                        x="2"
+                                                        y="2"
+                                                        width="12"
+                                                        height="12"
+                                                        rx="1.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        fill="none"
+                                                    />
+                                                    <line
+                                                        x1="5"
+                                                        y1="5.5"
+                                                        x2="11"
+                                                        y2="5.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="5"
+                                                        y1="8"
+                                                        x2="11"
+                                                        y2="8"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                    <line
+                                                        x1="5"
+                                                        y1="10.5"
+                                                        x2="9"
+                                                        y2="10.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                </svg>
+                                            {:else if opt.value === "original"}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <rect
+                                                        x="2"
+                                                        y="2"
+                                                        width="12"
+                                                        height="12"
+                                                        rx="1.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        fill="none"
+                                                    />
+                                                    <line
+                                                        x1="2"
+                                                        y1="5.5"
+                                                        x2="14"
+                                                        y2="5.5"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                    />
+                                                    <circle
+                                                        cx="4"
+                                                        cy="3.8"
+                                                        r="0.7"
+                                                        fill="currentColor"
+                                                    />
+                                                    <circle
+                                                        cx="6"
+                                                        cy="3.8"
+                                                        r="0.7"
+                                                        fill="currentColor"
+                                                    />
+                                                </svg>
+                                            {:else}
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <path
+                                                        d="M6 3H4a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 4 13h8a1.5 1.5 0 0 0 1.5-1.5V9"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                        fill="none"
+                                                    />
+                                                    <path
+                                                        d="M9 2.5h4.5V7"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        fill="none"
+                                                    />
+                                                    <line
+                                                        x1="13.5"
+                                                        y1="2.5"
+                                                        x2="8"
+                                                        y2="8"
+                                                        stroke="currentColor"
+                                                        stroke-width="1.3"
+                                                        stroke-linecap="round"
+                                                    />
+                                                </svg>
+                                            {/if}
+                                        </span>
+                                        {opt.label}
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+
+                        <!-- Refresh Interval -->
+                        <div class="field">
+                            <label for="refresh-interval"
+                                >Refresh Interval</label
+                            >
+                            <select
+                                bind:this={selectEl}
+                                id="refresh-interval"
+                                value={refreshInterval}
+                                onchange={handleRefreshChange}
+                            >
+                                {#each REFRESH_OPTIONS as opt}
+                                    <option value={opt.value}
+                                        >{opt.label}</option
+                                    >
+                                {/each}
+                            </select>
+                        </div>
+
+                        <!-- Article Retention -->
+                        <div class="field">
+                            <label for="article-retention"
+                                >Retention Period</label
+                            >
+                            <select
+                                id="article-retention"
+                                value={retentionHours}
+                                onchange={handleRetentionChange}
+                            >
+                                {#each RETENTION_OPTIONS as opt}
+                                    <option value={opt.value}
+                                        >{opt.label}</option
+                                    >
+                                {/each}
+                            </select>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- ═══════════════════════════════════════════ -->
+                <!-- SECTION: Window & Startup                  -->
+                <!-- ═══════════════════════════════════════════ -->
+                <button
+                    class="section-header"
+                    class:open={openSections.window}
+                    onclick={() => toggleSection("window")}
+                    aria-expanded={openSections.window}
+                >
+                    <span class="section-icon">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <rect x="1.5" y="2" width="13" height="12" rx="2" />
+                            <line x1="1.5" y1="5.5" x2="14.5" y2="5.5" />
+                            <circle
+                                cx="4"
+                                cy="3.75"
+                                r="0.7"
+                                fill="currentColor"
+                                stroke="none"
+                            />
+                            <circle
+                                cx="6"
+                                cy="3.75"
+                                r="0.7"
+                                fill="currentColor"
+                                stroke="none"
+                            />
+                            <circle
+                                cx="8"
+                                cy="3.75"
+                                r="0.7"
+                                fill="currentColor"
+                                stroke="none"
+                            />
+                        </svg>
+                    </span>
+                    <span class="section-title">Window & Startup</span>
+                    <span class="section-chevron">
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M3 4.5L6 7.5L9 4.5"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </span>
+                </button>
+
+                {#if openSections.window}
+                    <div class="section-body">
+                        <!-- Close to Tray -->
+                        <div class="field">
+                            <span class="field-label">Close to Tray</span>
+                            <div class="toggle-row">
+                                <span class="toggle-label"
+                                    >Minimize to system tray instead of quitting</span
+                                >
+                                <button
+                                    class="toggle-switch"
+                                    class:active={currentCloseToTray}
+                                    role="switch"
+                                    aria-checked={currentCloseToTray}
+                                    aria-label="Toggle close to tray"
+                                    onclick={handleCloseToTrayToggle}
+                                >
+                                    <span class="toggle-knob"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Start Minimized -->
+                        <div class="field">
+                            <div class="toggle-row">
+                                <span class="toggle-label"
+                                    >Start minimized to tray</span
+                                >
+                                <button
+                                    class="toggle-switch"
+                                    class:active={startMinimized}
+                                    role="switch"
+                                    aria-checked={startMinimized}
+                                    aria-label="Toggle start minimized"
+                                    onclick={handleStartMinimizedToggle}
+                                >
+                                    <span class="toggle-knob"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Restore Window -->
+                        <div class="field">
+                            <div class="toggle-row">
+                                <span class="toggle-label"
+                                    >Restore last window size and position</span
+                                >
+                                <button
+                                    class="toggle-switch"
+                                    class:active={restoreWindow}
+                                    role="switch"
+                                    aria-checked={restoreWindow}
+                                    aria-label="Toggle restore window position"
+                                    onclick={handleRestoreWindowToggle}
+                                >
+                                    <span class="toggle-knob"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Auto-refresh on launch -->
+                        <div class="field">
+                            <div class="toggle-row">
+                                <span class="toggle-label"
+                                    >Auto-refresh feeds on launch</span
+                                >
+                                <button
+                                    class="toggle-switch"
+                                    class:active={autoRefreshOnLaunch}
+                                    role="switch"
+                                    aria-checked={autoRefreshOnLaunch}
+                                    aria-label="Toggle auto-refresh on launch"
+                                    onclick={handleAutoRefreshToggle}
+                                >
+                                    <span class="toggle-knob"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- ═══════════════════════════════════════════ -->
+                <!-- SECTION: Backup                            -->
+                <!-- ═══════════════════════════════════════════ -->
+                <button
+                    class="section-header"
+                    class:open={openSections.backup}
+                    onclick={() => toggleSection("backup")}
+                    aria-expanded={openSections.backup}
+                >
+                    <span class="section-icon">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M4 10.5C2.2 10.5 1 9.3 1 7.7C1 6.2 2 5 3.5 4.7C4.1 3 5.8 1.5 8 1.5C10.2 1.5 11.9 3 12.5 4.7C13.9 5 15 6.2 15 7.7C15 9.3 13.7 10.5 12 10.5"
+                            />
+                            <line x1="8" y1="7.5" x2="8" y2="14" />
+                            <polyline points="5.5 11.5 8 14 10.5 11.5" />
+                        </svg>
+                    </span>
+                    <span class="section-title">Backup</span>
+                    <span class="section-chevron">
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M3 4.5L6 7.5L9 4.5"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </span>
+                </button>
+
+                {#if openSections.backup}
+                    <div class="section-body">
+                        <div class="field">
+                            <span class="field-label">Automatic Backup</span>
+                            <p class="field-description">
+                                Automatically export your feeds as OPML to a
+                                local directory on a schedule.
+                            </p>
+
+                            <div class="toggle-row">
+                                <span class="toggle-label"
+                                    >Enable automatic backup</span
+                                >
+                                <button
+                                    class="toggle-switch"
+                                    class:active={backupEnabled}
+                                    role="switch"
+                                    aria-checked={backupEnabled}
+                                    aria-label="Enable automatic backup"
+                                    onclick={handleBackupToggle}
+                                >
+                                    <span class="toggle-knob"></span>
+                                </button>
+                            </div>
+
+                            {#if backupEnabled}
+                                <div class="backup-fields">
+                                    <div class="backup-field">
+                                        <span class="backup-field-label"
+                                            >Frequency</span
                                         >
-                                    {/if}
+                                        <select
+                                            class="backup-frequency-select"
+                                            value={backupFrequency}
+                                            onchange={handleBackupFrequencyChange}
+                                        >
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly"
+                                                >Weekly</option
+                                            >
+                                            <option value="monthly"
+                                                >Monthly</option
+                                            >
+                                        </select>
+                                    </div>
+
+                                    <div class="backup-field">
+                                        <span class="backup-field-label"
+                                            >Directory</span
+                                        >
+                                        <div class="backup-path-row">
+                                            <button
+                                                class="btn btn-outline backup-browse-btn"
+                                                onclick={handlePickDirectory}
+                                            >
+                                                {backupDirectory
+                                                    ? "Change…"
+                                                    : "Choose folder…"}
+                                            </button>
+                                            {#if backupDirectory}
+                                                <span
+                                                    class="backup-path"
+                                                    title={backupDirectory}
+                                                >
+                                                    {backupDirectory}
+                                                </span>
+                                            {:else}
+                                                <span class="backup-path muted"
+                                                    >No directory selected</span
+                                                >
+                                            {/if}
+                                        </div>
+                                    </div>
+
+                                    <div class="backup-field">
+                                        <span class="backup-field-label"
+                                            >Time</span
+                                        >
+                                        <input
+                                            type="time"
+                                            class="backup-time-input"
+                                            value={backupTime}
+                                            onchange={handleBackupTimeChange}
+                                        />
+                                    </div>
+
+                                    <div class="backup-field">
+                                        <span class="backup-field-label"
+                                            >Status</span
+                                        >
+                                        {#if backupStatus.lastRun}
+                                            <span class="backup-status">
+                                                Last backup: {formatLastBackup(
+                                                    backupStatus.lastRun,
+                                                )}
+                                            </span>
+                                        {:else}
+                                            <span class="backup-status muted"
+                                                >No backup yet</span
+                                            >
+                                        {/if}
+                                        {#if backupStatus.lastError}
+                                            <span class="backup-status error">
+                                                Last error: {backupStatus.lastError}
+                                            </span>
+                                        {/if}
+                                    </div>
+
+                                    <button
+                                        class="btn btn-outline"
+                                        onclick={handleBackupNow}
+                                        disabled={backingUp || !backupDirectory}
+                                    >
+                                        {backingUp
+                                            ? "Backing up…"
+                                            : "Back up now"}
+                                    </button>
                                 </div>
-                            </div>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
 
-                            <div class="backup-field">
-                                <span class="backup-field-label">Time</span>
-                                <input
-                                    type="time"
-                                    class="backup-time-input"
-                                    value={backupTime}
-                                    onchange={handleBackupTimeChange}
-                                />
-                            </div>
+                <!-- ═══════════════════════════════════════════ -->
+                <!-- SECTION: Storage                           -->
+                <!-- ═══════════════════════════════════════════ -->
+                <button
+                    class="section-header"
+                    class:open={openSections.storage}
+                    onclick={() => toggleSection("storage")}
+                    aria-expanded={openSections.storage}
+                >
+                    <span class="section-icon">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <ellipse cx="8" cy="3.5" rx="5.5" ry="2" />
+                            <path
+                                d="M2.5 3.5V12.5C2.5 13.6 4.9 14.5 8 14.5C11.1 14.5 13.5 13.6 13.5 12.5V3.5"
+                            />
+                            <path
+                                d="M2.5 8C2.5 9.1 4.9 10 8 10C11.1 10 13.5 9.1 13.5 8"
+                            />
+                        </svg>
+                    </span>
+                    <span class="section-title">Storage</span>
+                    <span class="section-chevron">
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M3 4.5L6 7.5L9 4.5"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </span>
+                </button>
 
-                            <div class="backup-field">
-                                <span class="backup-field-label">Status</span>
-                                {#if backupStatus.lastRun}
-                                    <span class="backup-status">
-                                        Last backup: {formatLastBackup(
-                                            backupStatus.lastRun,
-                                        )}
+                {#if openSections.storage}
+                    <div class="section-body">
+                        <!-- Cache -->
+                        <div class="field">
+                            <span class="field-label">Cache</span>
+                            <div class="stats-row">
+                                {#if loadingStats}
+                                    <span class="stats-text muted"
+                                        >Loading…</span
+                                    >
+                                {:else if dbStats}
+                                    <span class="stats-text">
+                                        <strong
+                                            >{formatBytes(
+                                                dbStats.totalBytes,
+                                            )}</strong
+                                        >
+                                        on disk
+                                        <span class="stats-sep">&middot;</span>
+                                        {dbStats.articleCount} article{dbStats.articleCount !==
+                                        1
+                                            ? "s"
+                                            : ""}
+                                        <span class="stats-sep">&middot;</span>
+                                        {dbStats.feedCount} feed{dbStats.feedCount !==
+                                        1
+                                            ? "s"
+                                            : ""}
                                     </span>
                                 {:else}
-                                    <span class="backup-status muted"
-                                        >No backup yet</span
+                                    <span class="stats-text muted"
+                                        >Unable to load stats</span
                                     >
                                 {/if}
-                                {#if backupStatus.lastError}
-                                    <span class="backup-status error">
-                                        Last error: {backupStatus.lastError}
-                                    </span>
-                                {/if}
                             </div>
 
-                            <button
-                                class="btn btn-outline"
-                                onclick={handleBackupNow}
-                                disabled={backingUp || !backupDirectory}
-                            >
-                                {backingUp ? "Backing up…" : "Back up now"}
-                            </button>
-                        </div>
-                    {/if}
-                </div>
-
-                <hr class="divider" />
-
-                <!-- Clear Cache -->
-                <div class="field">
-                    <span class="field-label">Cache</span>
-                    <div class="stats-row">
-                        {#if loadingStats}
-                            <span class="stats-text muted">Loading…</span>
-                        {:else if dbStats}
-                            <span class="stats-text">
-                                <strong
-                                    >{formatBytes(dbStats.totalBytes)}</strong
-                                >
-                                on disk
-                                <span class="stats-sep">&middot;</span>
-                                {dbStats.articleCount} article{dbStats.articleCount !==
-                                1
-                                    ? "s"
-                                    : ""}
-                                <span class="stats-sep">&middot;</span>
-                                {dbStats.feedCount} feed{dbStats.feedCount !== 1
-                                    ? "s"
-                                    : ""}
-                            </span>
-                        {:else}
-                            <span class="stats-text muted"
-                                >Unable to load stats</span
-                            >
-                        {/if}
-                    </div>
-
-                    {#if confirmClearCache}
-                        <div class="confirm-bar">
-                            <span class="confirm-text"
-                                >Delete all cached articles?</span
-                            >
-                            <div class="confirm-actions">
+                            {#if confirmClearCache}
+                                <div class="confirm-bar">
+                                    <span class="confirm-text"
+                                        >Delete all cached articles?</span
+                                    >
+                                    <div class="confirm-actions">
+                                        <button
+                                            class="btn btn-small btn-cancel"
+                                            onclick={() =>
+                                                (confirmClearCache = false)}
+                                            disabled={clearingCache}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            class="btn btn-small btn-danger"
+                                            onclick={handleClearCache}
+                                            disabled={clearingCache}
+                                        >
+                                            {clearingCache
+                                                ? "Clearing…"
+                                                : "Confirm"}
+                                        </button>
+                                    </div>
+                                </div>
+                            {:else}
                                 <button
-                                    class="btn btn-small btn-cancel"
-                                    onclick={() => (confirmClearCache = false)}
-                                    disabled={clearingCache}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    class="btn btn-small btn-danger"
+                                    class="btn btn-outline"
                                     onclick={handleClearCache}
-                                    disabled={clearingCache}
+                                    disabled={dbStats?.articleCount === 0}
                                 >
-                                    {clearingCache ? "Clearing…" : "Confirm"}
+                                    Clear cache
                                 </button>
-                            </div>
+                            {/if}
                         </div>
-                    {:else}
-                        <button
-                            class="btn btn-outline"
-                            onclick={handleClearCache}
-                            disabled={dbStats?.articleCount === 0}
-                        >
-                            Clear cache
-                        </button>
-                    {/if}
-                </div>
 
-                <hr class="divider" />
+                        <hr class="divider" />
 
-                <!-- Clear All Data -->
-                <div class="field">
-                    <span class="field-label">Reset</span>
-                    <p class="field-description">
-                        Remove all feeds, articles, settings, and local
-                        preferences. This cannot be undone.
-                    </p>
+                        <!-- Reset -->
+                        <div class="field">
+                            <span class="field-label">Reset</span>
+                            <p class="field-description">
+                                Remove all feeds, articles, settings, and local
+                                preferences. This cannot be undone.
+                            </p>
 
-                    {#if confirmClearAll}
-                        <div class="confirm-bar danger">
-                            <span class="confirm-text"
-                                >Erase everything and reset the app?</span
-                            >
-                            <div class="confirm-actions">
+                            {#if confirmClearAll}
+                                <div class="confirm-bar danger">
+                                    <span class="confirm-text"
+                                        >Erase everything and reset the app?</span
+                                    >
+                                    <div class="confirm-actions">
+                                        <button
+                                            class="btn btn-small btn-cancel"
+                                            onclick={() =>
+                                                (confirmClearAll = false)}
+                                            disabled={clearingAll}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            class="btn btn-small btn-danger"
+                                            onclick={handleClearAll}
+                                            disabled={clearingAll}
+                                        >
+                                            {clearingAll
+                                                ? "Erasing…"
+                                                : "Erase everything"}
+                                        </button>
+                                    </div>
+                                </div>
+                            {:else}
                                 <button
-                                    class="btn btn-small btn-cancel"
-                                    onclick={() => (confirmClearAll = false)}
-                                    disabled={clearingAll}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    class="btn btn-small btn-danger"
+                                    class="btn btn-outline btn-outline-danger"
                                     onclick={handleClearAll}
-                                    disabled={clearingAll}
                                 >
-                                    {clearingAll
-                                        ? "Erasing…"
-                                        : "Erase everything"}
+                                    Clear all data
                                 </button>
-                            </div>
+                            {/if}
                         </div>
-                    {:else}
-                        <button
-                            class="btn btn-outline btn-outline-danger"
-                            onclick={handleClearAll}
-                        >
-                            Clear all data
-                        </button>
-                    {/if}
-                </div>
+                    </div>
+                {/if}
 
                 <footer class="modal-footer">
                     <button type="button" class="btn btn-cancel" onclick={close}
@@ -1498,12 +1856,88 @@
     }
 
     .body {
-        padding: 1.25rem;
+        padding: 0.5rem 1.25rem 1.25rem;
         display: flex;
         flex-direction: column;
-        gap: 1.25rem;
+        gap: 0;
         overflow-y: auto;
     }
+
+    /* ── Section accordion ────────────────────────── */
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        width: 100%;
+        padding: 0.65rem 0.1rem;
+        border: none;
+        border-bottom: 1px solid #eaeaea;
+        background: none;
+        color: inherit;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        user-select: none;
+        border-radius: 0;
+    }
+
+    .section-header:hover {
+        background-color: rgba(128, 128, 128, 0.06);
+    }
+
+    :global(html.dark) .section-header {
+        border-bottom-color: #3a3a3a;
+    }
+
+    :global(html.dark) .section-header:hover {
+        background-color: rgba(128, 128, 128, 0.1);
+    }
+
+    .section-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        opacity: 0.5;
+        flex-shrink: 0;
+    }
+
+    .section-title {
+        font-size: 0.88rem;
+        font-weight: 600;
+        flex: 1;
+        text-align: left;
+    }
+
+    .section-chevron {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        opacity: 0.35;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .section-header.open .section-chevron {
+        transform: rotate(180deg);
+    }
+
+    .section-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0.75rem 0.1rem 0.85rem 0.35rem;
+        border-bottom: 1px solid #eaeaea;
+    }
+
+    :global(html.dark) .section-body {
+        border-bottom-color: #3a3a3a;
+    }
+
+    /* ── Fields ────────────────────────────────────── */
 
     .field {
         display: flex;
@@ -1561,7 +1995,7 @@
         border-top-color: #3a3a3a;
     }
 
-    /* ── Theme toggle ─────────────────────────────── */
+    /* ── Theme toggle (radio group) ───────────────── */
 
     .theme-toggle {
         display: flex;
@@ -1629,16 +2063,16 @@
         height: 16px;
     }
 
-    /* ── Backup section ───────────────────────────── */
+    /* ── Toggle rows ──────────────────────────────── */
 
-    .backup-toggle-row {
+    .toggle-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem;
     }
 
-    .backup-toggle-label {
+    .toggle-label {
         font-size: 0.85rem;
     }
 
@@ -1682,6 +2116,8 @@
     .toggle-switch.active .toggle-knob {
         transform: translateX(18px);
     }
+
+    /* ── Backup section ───────────────────────────── */
 
     .backup-fields {
         display: flex;
